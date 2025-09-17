@@ -1,0 +1,80 @@
+.container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  background: #f8fafc; 
+  overflow: hidden; 
+}
+
+.backgroundShapes {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+.shape {
+  position: absolute;
+  border-radius: 9999px; 
+  background-color: #0179d2; 
+  opacity: 0.1;
+  animation: float 40s ease-in-out infinite;
+}
+
+.shape1 {
+  width: 200px;
+  height: 200px;
+  top: 10%;
+  left: 5%;
+  animation-duration: 45s;
+}
+
+.shape2 {
+  width: 400px;
+  height: 400px;
+  top: 20%;
+  right: -100px;
+  animation-duration: 50s;
+  animation-delay: -5s;
+}
+
+.shape3 {
+  width: 300px;
+  height: 300px;
+  bottom: 5%;
+  left: 25%;
+  animation-duration: 35s;
+  animation-delay: -10s;
+}
+
+.shape4 {
+  width: 150px;
+  height: 150px;
+  bottom: 15%;
+  right: 10%;
+  animation-duration: 55s;
+  animation-delay: -15s;
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0px) scale(1);
+  }
+  50% {
+    transform: translateY(-40px) scale(1.1);
+  }
+  100% {
+    transform: translateY(0px) scale(1);
+  }
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
