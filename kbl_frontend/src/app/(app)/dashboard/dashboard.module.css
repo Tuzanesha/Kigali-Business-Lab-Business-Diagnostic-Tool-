@@ -1,0 +1,163 @@
+.pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.pageTitle {
+  font-family: 'Bebas Kai', sans-serif;
+  font-size: 2.25rem;
+  color: #012f53;
+}
+
+.welcomeMessage {
+  font-size: 1rem;
+  color: #64748b;
+  margin-top: -0.25rem;
+}
+
+.newAssessmentButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  height: 2.5rem;
+  padding: 0 1rem;
+  font-size: 0.875rem;
+  background-color: #0179d2;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+.newAssessmentButton:hover {
+  background-color: #0167b3;
+}
+
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+@media (min-width: 768px) {
+  .kpiGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.kpiCard {
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  border: 1px solid #f1f5f9;
+}
+
+.kpiTitle {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #64748b;
+  margin-bottom: 1rem;
+}
+
+.kpiValue {
+  font-family: 'Bebas Kai', sans-serif;
+  font-size: 3rem;
+  color: #012f53;
+}
+
+.kpiSubtext {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.mainChartCard {
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  border: 1px solid #f1f5f9;
+  margin-bottom: 1.5rem;
+}
+
+.chartHeader {
+  margin-bottom: 2rem;
+}
+
+.chartTitle {
+  font-family: 'Bebas Kai', sans-serif;
+  font-size: 1.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #01497f;
+  margin-bottom: 1rem;
+}
+
+.chartLegend {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.legendColorBox {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 0.125rem;
+}
+
+.insightGrid {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 1.5rem;
+}
+@media (min-width: 768px) {
+  .insightGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.insightCard {
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  border: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.insightIcon {
+  flex-shrink: 0;
+  color: #012f53;
+  background-color: #e2e8f0;
+  border-radius: 9999px;
+  padding: 0.75rem;
+}
+
+.insightTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #012f53;
+  margin-bottom: 0.25rem;
+}
+
+.insightText {
+  font-size: 0.875rem;
+  color: #64748b;
+}

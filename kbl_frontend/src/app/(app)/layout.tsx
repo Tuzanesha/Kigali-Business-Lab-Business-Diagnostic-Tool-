@@ -1,4 +1,4 @@
-import { Sidebar } from '@/components/layout/sidebar'; // We will create this next
+import { Sidebar } from '..//../components/layout/sidebar'
 
 export default function AppLayout({
   children,
@@ -6,9 +6,11 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen">
+    // This div creates the two-column layout
+    <div className="flex min-h-screen bg-slate-100">
       <Sidebar />
-      <main className="flex-1 bg-slate-100 p-6 md:p-8">
+      <main className="flex-1 p-6 md:p-8">
+        {/* Your DashboardPage component will be rendered here as 'children' */}
         {children}
       </main>
     </div>
