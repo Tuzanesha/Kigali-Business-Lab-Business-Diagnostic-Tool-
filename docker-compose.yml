@@ -29,9 +29,11 @@ services:
       EMAIL_HOST_PASSWORD: pkgdaegbpnredkhi
       EMAIL_USE_TLS: True
       DEFAULT_FROM_EMAIL: karlychloee12@gmail.com
+      # SMS provider selection
+      SMS_PROVIDER: vonage
       VONAGE_API_KEY: 24b3e662
       VONAGE_API_SECRET: oMtjyoGwKph0HOw3
-      VONAGE_FROM: Kigali Business Lab
+      VONAGE_FROM: +250787687607
     volumes:
       - .:/app
     ports:

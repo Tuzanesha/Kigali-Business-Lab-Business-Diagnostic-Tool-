@@ -18,22 +18,17 @@
       n.textContent = msg || '';
       n.style.display = msg ? 'block' : 'none';
     }
-    function showCode(code){
-      const c = document.getElementById('devcode');
-      c.textContent = code ? ('Code: '+code) : '';
-      c.style.display = code ? 'block' : 'none';
-    }
     async function send(){
       const method = document.querySelector('input[name="method"]:checked').value;
       if(method === 'email'){
         const r = await callAPI('/api/auth/send-otp/', {method:'POST'});
+        if(!r) return; // redirected (unauthorized)
         notify((r && r.detail) || 'OTP sent to your email.');
-        showCode(r && r.code);
       } else {
         const phone = document.getElementById('phone').value.trim();
         const r = await callAPI('/api/auth/send-phone-otp/', {method:'POST', body: JSON.stringify({phone})});
+        if(!r) return; // redirected (unauthorized)
         notify((r && r.detail) || 'OTP sent to your phone number.');
-        showCode(r && r.code);
       }
     }
     async function verify(evt){
@@ -70,7 +65,6 @@
     <input id="phone" placeholder="Phone e.g. +2507..." style="display:inline-block;min-width:240px" />
     <button onclick="send()" style="margin-left:.5rem">Send code</button>
   </p>
-  <div id="devcode" style="display:none;background:#ffd;padding:.4rem .8rem;margin:.25rem 0;border-left:3px solid #fc0"></div>
   <form onsubmit="verify(event)">
     <div><label>Code <input id="code" maxlength="6" required /></label></div>
     <button type="submit">Verify</button>

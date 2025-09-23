@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
+import os
+import logging
+import re
+import requests
 
 from django.db.models import Prefetch
 
@@ -101,5 +105,38 @@ def recompute_and_store_summary(enterprise: Enterprise) -> ScoreSummary:
     )
     return summary
 
+
+def send_sms_vonage(phone: str, text: str):
+    api_key = os.environ.get('VONAGE_API_KEY')
+    api_secret = os.environ.get('VONAGE_API_SECRET')
+    sender = os.environ.get('VONAGE_FROM')  # must be your Vonage number
+
+    if not (api_key and api_secret and sender):
+        return False, 'Vonage not configured', {}
+
+    try:
+        resp = requests.post(
+            'https://rest.nexmo.com/sms/json',
+            headers={'Content-Type': 'application/x-www-form-urlencoded'},
+            data={
+                'api_key': api_key,
+                'api_secret': api_secret,
+                'to': phone,
+                'from': sender,
+                'text': text,
+            },
+            timeout=15
+        )
+        body = resp.json()
+        logging.info("Vonage response: %s", body)
+
+        msgs = body.get('messages', []) if isinstance(body, dict) else []
+        if msgs and msgs[0].get('status') == '0':
+            return True, '', {'provider': 'vonage', 'response': body}
+        return False, msgs[0].get('error-text', 'Unknown error'), {'provider': 'vonage', 'response': body}
+
+    except Exception as e:
+        logging.exception("Vonage request failed")
+        return False, str(e), {}
 
 

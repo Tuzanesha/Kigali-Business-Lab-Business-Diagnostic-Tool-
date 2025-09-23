@@ -10,3 +10,4 @@ wheel==0.45.1
 gunicorn==23.0.0
 djangorestframework-simplejwt==5.3.1
 requests==2.32.3
+

@@ -34,6 +34,9 @@ ALLOWED_HOSTS = [h for h in os.getenv('DJANGO_ALLOWED_HOSTS', '').split(',') if 
 # Application definition
 
 INSTALLED_APPS = [
+    # Ensure custom user app loads before admin to satisfy swappable auth dependencies
+    'accounts',
+
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -41,9 +44,10 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.postgres',
+
     'rest_framework',
     'rest_framework_simplejwt',
-    'accounts',
+    'rest_framework_simplejwt.token_blacklist',
     'diagnostic',
 ]
 

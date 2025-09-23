@@ -1,4 +1,6 @@
-from rest_framework import viewsets, status, permissions
+from rest_framework import viewsets, status, permissions, serializers
+import logging
+import re
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -13,6 +15,7 @@ from .serializers import (
     EmailOTPSerializer,
 )
 from .services import recompute_and_store_summary
+from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
@@ -109,6 +112,27 @@ class EnterpriseViewSet(viewsets.ModelViewSet):
         })
 
 
+# Custom JWT obtain pair that accepts email/password
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
+
+class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
+    email = serializers.EmailField(write_only=True)
+    password = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        # Map email to username field expected by parent
+        email = attrs.get('email')
+        if email:
+            attrs['username'] = email
+        return super().validate(attrs)
+
+
+class EmailTokenObtainPairView(TokenObtainPairView):
+    serializer_class = EmailTokenObtainPairSerializer
+
+
 class QuestionResponseViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = QuestionResponseSerializer
@@ -197,6 +221,9 @@ import random
 from django.core.mail import send_mail
 from django.conf import settings
 import requests
+import os
+from .services import send_sms_vonage
+from .services import recompute_and_store_summary
 
 
 class SendEmailOTPView(APIView):
@@ -228,9 +255,6 @@ class SendEmailOTPView(APIView):
             print('Email send failed:', e)
             delivery = 'console'
         resp = {"detail": "OTP sent to your email.", "expires_at": expires}
-        # In development, also return the code for convenience
-        if getattr(settings, 'DEBUG', False):
-            resp['code'] = code
         return Response(resp)
 
 
@@ -270,47 +294,34 @@ class SendPhoneOTPView(APIView):
             return Response({"detail": "Phone/email already verified."})
 
         phone = (request.data.get('phone') or '').strip()
+        # Basic E.164 normalization (very naive): remove spaces/dashes, ensure starts with '+'
+        phone = re.sub(r"[\s-]", "", phone)
+        if phone and not phone.startswith('+') and phone.isdigit():
+            phone = '+' + phone
         if not phone:
-            # fall back to stored profile phone
+            # fall back to stored user phone
             try:
-                phone = request.user.profile.phone
+                phone = request.user.phone
             except Exception:
                 phone = ''
         if not phone:
             return Response({"detail": "Phone number is required"}, status=400)
 
+        # Generate OTP and send via Vonage SMS API
         code = f"{random.randint(0,999999):06d}"
         expires = timezone.now() + timedelta(minutes=10)
+        text = f"Your verification code is {code}. It expires in 10 minutes."
+        ok, err, meta = send_sms_vonage(phone, text)
+        if not ok:
+            # Log detailed provider error internally but do not expose to end users
+            try:
+                logging.error('SMS send failed: %s | meta=%s', err, meta)
+            except Exception:
+                pass
+            return Response({"detail": "Delivery not available right now."}, status=502)
+        # Store OTP only after SMS accepted by provider
         PhoneOTP.objects.create(user=request.user, phone=phone, code=code, expires_at=expires)
-
-        # Attempt to send via Vonage REST API using requests
-        api_key = __import__('os').environ.get('VONAGE_API_KEY')
-        api_secret = __import__('os').environ.get('VONAGE_API_SECRET')
-        from_name = __import__('os').environ.get('VONAGE_FROM', 'Verification')
-
-        sent = False
-        try:
-            if api_key and api_secret:
-                resp = requests.post(
-                    'https://rest.nexmo.com/sms/json',
-                    data={
-                        'api_key': api_key,
-                        'api_secret': api_secret,
-                        'to': phone,
-                        'from': from_name,
-                        'text': f'Your verification code is {code}. It expires in 10 minutes.'
-                    }, timeout=10
-                )
-                sent = resp.status_code == 200
-        except Exception as e:
-            print('SMS send failed:', e)
-
-        detail = "OTP sent to your phone number."
-        resp = {"detail": detail, "expires_at": expires}
-        # In development or when SMS not configured, include the code for convenience
-        if getattr(settings, 'DEBUG', False) or not (api_key and api_secret):
-            resp['code'] = code
-        return Response(resp)
+        return Response({"detail": "OTP sent to your phone number.", "expires_at": expires})
 
 
 class VerifyPhoneOTPView(APIView):
@@ -326,7 +337,7 @@ class VerifyPhoneOTPView(APIView):
         phone = (request.data.get('phone') or '').strip()
         if not phone:
             try:
-                phone = request.user.profile.phone
+                phone = request.user.phone
             except Exception:
                 phone = ''
         if not phone:
@@ -351,16 +362,98 @@ class AuthStatusView(APIView):
     def get(self, request):
         has_email_verified = EmailOTP.objects.filter(user=request.user, is_verified=True).exists()
         has_phone_verified = PhoneOTP.objects.filter(user=request.user, is_verified=True).exists()
-        profile_phone = ''
+        user_phone = ''
         try:
-            profile_phone = request.user.profile.phone
+            user_phone = request.user.phone
         except Exception:
-            profile_phone = ''
+            user_phone = ''
         return Response({
             "verified": bool(has_email_verified or has_phone_verified),
-            "email_verified": has_email_verified,
-            "phone_verified": has_phone_verified,
-            "phone": profile_phone,
+            "has_email_verified": has_email_verified,
+            "has_phone_verified": has_phone_verified,
+            "phone": user_phone,
+        })
+
+
+class MyEnterprisesSummariesView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        # Return all enterprises owned by current user with their latest summary
+        enterprises = Enterprise.objects.filter(owner=request.user).order_by('name')
+        data = []
+        for e in enterprises:
+            summary = ScoreSummary.objects.filter(enterprise=e).order_by('-updated_at').first()
+            if not summary:
+                # compute lazily if missing
+                summary = recompute_and_store_summary(e)
+            # Determine if any responses exist for this enterprise (used by UI)
+            has_responses = QuestionResponse.objects.filter(enterprise=e).exists()
+            data.append({
+                'id': e.id,
+                'name': e.name,
+                'overall_percentage': summary.overall_percentage if summary else 0,
+                'section_scores': summary.section_scores if summary else {},
+                'has_responses': has_responses,
+                'updated_at': getattr(summary, 'updated_at', None),
+            })
+        return Response({'results': data})
+
+
+class RecomputeAllSummariesView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        enterprises = Enterprise.objects.filter(owner=request.user)
+        out = []
+        for e in enterprises:
+            s = recompute_and_store_summary(e)
+            out.append({
+                'id': e.id,
+                'name': e.name,
+                'overall_percentage': s.overall_percentage,
+            })
+        return Response({'results': out})
+
+
+class LogoutView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        # Client may pass refresh token; if present, blacklist it
+        refresh = request.data.get('refresh')
+        if refresh:
+            try:
+                token = RefreshToken(refresh)
+                token.blacklist()
+            except TokenError:
+                # Ignore invalid/expired refresh tokens and still succeed
+                pass
+            except Exception:
+                # Log but do not leak details to user
+                logging.exception('Failed to blacklist refresh token')
+        # Nothing else to do for stateless JWT; instruct client to clear storage
+        return Response({"detail": "Logged out"})
+
+
+class EnterpriseReportView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk: int):
+        try:
+            e = Enterprise.objects.get(pk=pk, owner=request.user)
+        except Enterprise.DoesNotExist:
+            return Response({"detail": "Not found"}, status=404)
+        summary = ScoreSummary.objects.filter(enterprise=e).order_by('-updated_at').first()
+        if not summary:
+            summary = recompute_and_store_summary(e)
+        return Response({
+            'id': e.id,
+            'name': e.name,
+            'overall_percentage': summary.overall_percentage if summary else 0,
+            'section_scores': summary.section_scores if summary else {},
+            'priorities': summary.priorities if summary else {},
+            'updated_at': getattr(summary, 'updated_at', None),
         })
 
 
@@ -400,15 +493,9 @@ class AssessmentPageView(TemplateView):
 class VerifyPageView(TemplateView):
     template_name = "diagnostic/verify.html"
 
-    def dispatch(self, request, *args, **kwargs):
-        # If already verified, go to dashboard
-        if request.user.is_authenticated:
-            has_email_verified = EmailOTP.objects.filter(user=request.user, is_verified=True).exists()
-            has_phone_verified = PhoneOTP.objects.filter(user=request.user, is_verified=True).exists()
-            if has_email_verified or has_phone_verified:
-                from django.shortcuts import redirect
-                return redirect('/api/web/dashboard/')
-        return super().dispatch(request, *args, **kwargs)
+
+class AssessmentReportPageView(TemplateView):
+    template_name = "diagnostic/assessment_report.html"
 
 from django.shortcuts import render
 

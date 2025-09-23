@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.views import TokenRefreshView
+from .views import EmailTokenObtainPairView
 from .views import (
     CategoryViewSet,
     QuestionViewSet,
@@ -19,6 +20,11 @@ from .views import (
     AuthStatusView,
     SendPhoneOTPView,
     VerifyPhoneOTPView,
+    MyEnterprisesSummariesView,
+    RecomputeAllSummariesView,
+    EnterpriseReportView,
+    AssessmentReportPageView,
+    LogoutView,
 )
 
 router = DefaultRouter()
@@ -32,7 +38,7 @@ router.register(r'attachments', AttachmentViewSet, basename='attachment')
 urlpatterns = [
     path('', include(router.urls)),
     path('auth/register/', RegisterView.as_view()),
-    path('auth/login/', TokenObtainPairView.as_view()),
+    path('auth/login/', EmailTokenObtainPairView.as_view()),
     path('auth/refresh/', TokenRefreshView.as_view()),
     path('dashboard/', DashboardView.as_view()),
     path('auth/send-otp/',  __import__('diagnostic.views', fromlist=['SendEmailOTPView']).SendEmailOTPView.as_view()),
@@ -40,6 +46,10 @@ urlpatterns = [
     path('auth/send-phone-otp/',  __import__('diagnostic.views', fromlist=['SendPhoneOTPView']).SendPhoneOTPView.as_view()),
     path('auth/verify-phone-otp/',  __import__('diagnostic.views', fromlist=['VerifyPhoneOTPView']).VerifyPhoneOTPView.as_view()),
     path('auth/status/', AuthStatusView.as_view()),
+    path('auth/logout/', LogoutView.as_view()),
+    path('my/enterprises-summaries/', MyEnterprisesSummariesView.as_view()),
+    path('recompute/all/', RecomputeAllSummariesView.as_view()),
+    path('enterprise/<int:pk>/report/', EnterpriseReportView.as_view()),
     # Minimal web pages
     path('web/login/', LoginPageView.as_view()),
     path('web/signup/', SignupPageView.as_view()),
@@ -47,6 +57,7 @@ urlpatterns = [
     path('web/verify/', VerifyPageView.as_view()),
     path('web/enterprise/new/', EnterpriseCreatePageView.as_view()),
     path('web/assessment/', AssessmentPageView.as_view()),
+    path('web/assessment-report/', AssessmentReportPageView.as_view()),
 ]
 
 
