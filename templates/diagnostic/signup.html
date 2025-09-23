@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Sign up</title>
+  <style>body{font-family:sans-serif;max-width:720px;margin:2rem auto}</style>
+  <script>
+    async function signup(evt){
+      evt.preventDefault();
+      const full_name = document.getElementById('full_name').value;
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const phone = document.getElementById('phone').value;
+      const res = await fetch('/api/auth/register/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({full_name,email,password,phone})});
+      if(res.ok){
+        alert('Account created. Please log in.');
+        location.href = '/api/web/login/';
+      } else {
+        const data = await res.json();
+        alert((data.detail||'Signup failed'));
+      }
+    }
+  </script>
+</head>
+<body>
+  <h1>Create Account</h1>
+  <form onsubmit="signup(event)">
+    <div><label>Full name <input id="full_name" required /></label></div>
+    <div><label>Email <input id="email" type="email" required /></label></div>
+    <div><label>Phone number <input id="phone" required /></label></div>
+    <div><label>Password <input id="password" type="password" required /></label></div>
+    <button type="submit">Create Account</button>
+  </form>
+  <p><a href="/api/web/login/">Log in</a></p>
+</body>
+</html>
+
+
+

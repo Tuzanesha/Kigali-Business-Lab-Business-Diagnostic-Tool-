@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Dashboard</title>
+  <style>body{font-family:sans-serif;max-width:900px;margin:2rem auto}</style>
+  <script>
+    async function callAPI(path, options={}){
+      const token = localStorage.getItem('access');
+      options.headers = Object.assign({'Content-Type':'application/json'}, options.headers||{});
+      if(token){ options.headers['Authorization'] = 'Bearer '+token; }
+      const res = await fetch(path, options);
+      if(res.status===401){
+        location.href = '/api/web/login/';
+        return;
+      }
+      return res.json();
+    }
+    async function load(){
+      const res = await fetch('/api/dashboard/', {headers:{'Authorization':'Bearer '+(localStorage.getItem('access')||''), 'Content-Type':'application/json'}});
+      if(res.status===403){
+        const j = await res.json();
+        if(j.needs_otp){
+          alert('Please verify your account first.');
+          location.href = '/api/web/verify/';
+          return;
+        }
+      }
+      if(res.status===401){ location.href='/api/web/login/'; return; }
+      const dash = await res.json();
+      document.getElementById('enterprises').textContent = dash.enterprises;
+      document.getElementById('overall').textContent = (dash.latest_overall_percentage||0)+'%';
+    }
+    window.addEventListener('load', load);
+  </script>
+</head>
+<body>
+  <h1>Dashboard</h1>
+  <p>Enterprises: <span id="enterprises">0</span> | Latest Overall: <span id="overall">0%</span></p>
+  <h2>Create Enterprise</h2>
+  <p>
+    Use the full form to create an enterprise with all required fields.
+    <a href="/api/web/enterprise/new/">Open Create Form</a>
+  </p>
+  <p><a href="/api/web/assessment/">Open Assessment</a></p>
+</body>
+</html>
+
+
