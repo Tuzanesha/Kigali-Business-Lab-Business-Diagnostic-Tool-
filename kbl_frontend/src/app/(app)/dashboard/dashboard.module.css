@@ -1,54 +1,57 @@
-.pageHeader {
+.dashboard-page {
+  font-family: 'Inter', sans-serif;
+  width: 100%;
+}
+
+
+.page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
 }
 
-.pageTitle {
+.page-title {
   font-family: 'Bebas Kai', sans-serif;
   font-size: 2.25rem;
-  color: #012f53;
+  color: #0d2c4f;
+  margin: 0;
 }
 
-.welcomeMessage {
+.welcome-message {
   font-size: 1rem;
   color: #64748b;
   margin-top: -0.25rem;
 }
 
-.newAssessmentButton {
+.new-assessment-button {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   border-radius: 0.5rem;
   font-weight: 600;
-  height: 2.5rem;
+  height: 40px;
   padding: 0 1rem;
   font-size: 0.875rem;
-  background-color: #0179d2;
+  background-color: #1168d9;
   color: white;
   border: none;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: background-color 0.2s;
 }
-.newAssessmentButton:hover {
-  background-color: #0167b3;
+.new-assessment-button:hover {
+  background-color: #0058c0;
 }
 
-.kpiGrid {
+
+.kpi-grid {
   display: grid;
-  grid-template-columns: repeat(1, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1.5rem;
   margin-bottom: 1.5rem;
 }
-@media (min-width: 768px) {
-  .kpiGrid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
 
-.kpiCard {
+.kpi-card {
   background-color: white;
   padding: 1.5rem;
   border-radius: 1rem;
@@ -56,20 +59,20 @@
   border: 1px solid #f1f5f9;
 }
 
-.kpiTitle {
+.kpi-title {
   font-size: 0.875rem;
   font-weight: 500;
   color: #64748b;
   margin-bottom: 1rem;
 }
 
-.kpiValue {
+.kpi-value {
   font-family: 'Bebas Kai', sans-serif;
   font-size: 3rem;
   color: #012f53;
 }
 
-.kpiSubtext {
+.kpi-subtext {
   font-size: 0.875rem;
   color: #64748b;
   margin-top: 0.5rem;
@@ -78,7 +81,8 @@
   gap: 0.25rem;
 }
 
-.mainChartCard {
+
+.main-chart-card {
   background-color: white;
   padding: 1.5rem;
   border-radius: 1rem;
@@ -87,11 +91,11 @@
   margin-bottom: 1.5rem;
 }
 
-.chartHeader {
+.chart-header {
   margin-bottom: 2rem;
 }
 
-.chartTitle {
+.chart-title {
   font-family: 'Bebas Kai', sans-serif;
   font-size: 1.25rem;
   text-transform: uppercase;
@@ -100,7 +104,7 @@
   margin-bottom: 1rem;
 }
 
-.chartLegend {
+.chart-legend {
   display: flex;
   align-items: center;
   gap: 1.5rem;
@@ -108,30 +112,25 @@
   color: #64748b;
 }
 
-.legendItem {
+.legend-item {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.legendColorBox {
+.legend-color-box {
   width: 0.75rem;
   height: 0.75rem;
   border-radius: 0.125rem;
 }
 
-.insightGrid {
+.insight-grid {
   display: grid;
-  grid-template-columns: repeat(1, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 1.5rem;
 }
-@media (min-width: 768px) {
-  .insightGrid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
 
-.insightCard {
+.insight-card {
   background-color: white;
   padding: 1.5rem;
   border-radius: 1rem;
@@ -142,7 +141,7 @@
   gap: 1rem;
 }
 
-.insightIcon {
+.insight-icon {
   flex-shrink: 0;
   color: #012f53;
   background-color: #e2e8f0;
@@ -150,14 +149,14 @@
   padding: 0.75rem;
 }
 
-.insightTitle {
+.insight-title {
   font-size: 0.875rem;
   font-weight: 600;
   color: #012f53;
   margin-bottom: 0.25rem;
 }
 
-.insightText {
+.insight-text {
   font-size: 0.875rem;
   color: #64748b;
 }

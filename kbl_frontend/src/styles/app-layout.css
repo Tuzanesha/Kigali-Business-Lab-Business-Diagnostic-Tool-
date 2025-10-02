@@ -1,0 +1,73 @@
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f4f7fa; /* Light grey background */
+}
+
+.main-content {
+  flex-grow: 1; /* Takes up remaining space */
+  padding: 3rem;
+  transition: margin-left 0.3s ease-in-out;
+}
+
+/* On desktop, create space for the sidebar */
+@media (min-width: 768px) {
+  .main-content {
+    margin-left: 200px; /* This must match your sidebar's width */
+  }
+}
+
+/* On mobile, the content takes up the full width */
+@media (max-width: 767px) {
+  .main-content {
+    margin-left: 0;
+    padding: 1rem;
+    padding-top: 5rem; /* Add padding to account for the sticky mobile header */
+  }
+}
+
+/* Styles for the mobile header bar */
+.mobile-header {
+  display: none;
+  position: fixed; /* Changed to fixed */
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  background-color: white;
+  padding: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+@media (max-width: 767px) {
+  .mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.hamburger-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+}
+
+/* Styles for the mobile sidebar overlay */
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 30;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s;
+}
+
+.sidebar-overlay.visible {
+  opacity: 1;
+  visibility: visible;
+}

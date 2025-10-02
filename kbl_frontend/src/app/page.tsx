@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { motion, useAnimate } from 'framer-motion';
 import { useEffect } from 'react';
-import { Users, Briefcase, BarChart3, DollarSign, Megaphone, Gavel, TrendingUp, FileText, ClipboardCheck, Award } from 'lucide-react';
+import { Users, Briefcase, BarChart3, DollarSign, Gavel, TrendingUp, FileText, ClipboardCheck, Award } from 'lucide-react';
 import styles from './LandingPage.module.css';
 
 
