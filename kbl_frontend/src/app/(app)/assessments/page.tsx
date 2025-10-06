@@ -2,7 +2,7 @@
 
 import { PlusCircle, Eye, Trash2 } from 'lucide-react';
 import styles from './assessments.module.css';
-
+import Link from 'next/link';
 
 const assessmentsData = [
   { id: 1, date: 'October 25, 2023', score: '87%', status: 'completed' },
@@ -16,10 +16,12 @@ export default function AssessmentsPage() {
     <div>
       <header className={styles.pageHeader}>
         <h1 className={styles.pageTitle}>ASSESSMENTS</h1>
-        <button className={styles.newAssessmentButton}>
-          <PlusCircle height={20} width={20} />
-          <span>Start New Assessment</span>
-        </button>
+        
+          <Link href="/assessments/new" className={styles.newAssessmentButton}>
+    <PlusCircle height={20} width={20} />
+    <span>Start New Assessment</span>
+</Link>
+        
       </header>
 
       <div className={styles.mainCard}>
@@ -44,13 +46,16 @@ export default function AssessmentsPage() {
                   </td>
                   <td>{assessment.score}</td>
                   <td className={styles.actionsCell}>
-                    <button className={styles.actionButton} aria-label="View">
-                      <Eye height={18} width={18} />
-                    </button>
-                    <button className={styles.actionButton} aria-label="Delete">
-                      <Trash2 height={18} width={18} />
-                    </button>
-                  </td>
+    {/* --- THIS IS THE FIX --- */}
+    {/* Replaced the button with a Link component. */}
+    {/* The href creates a dynamic URL like /assessments/1/report */}
+    <Link href={`/assessments/${assessment.id}/report`} className={styles.actionButton} aria-label="View">
+        <Eye height={18} width={18} />
+    </Link>
+    <button className={styles.actionButton} aria-label="Delete">
+        <Trash2 height={18} width={18} />
+    </button>
+</td>
                 </tr>
               ))}
             </tbody>
