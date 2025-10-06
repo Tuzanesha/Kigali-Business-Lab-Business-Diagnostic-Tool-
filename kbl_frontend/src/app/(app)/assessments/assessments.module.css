@@ -1,0 +1,154 @@
+
+.pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.pageTitle {
+  font-family: 'Bebas Kai', sans-serif;
+  font-size: 2.25rem;
+  color: #012f53;
+  margin: 0;
+}
+
+.newAssessmentButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  height: 2.5rem;
+  padding: 0 1rem;
+  font-size: 0.875rem;
+  background-color: #0179d2;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+.newAssessmentButton:hover {
+  background-color: #0167b3;
+}
+
+.mainCard {
+  background-color: white;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  overflow: hidden; 
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse; 
+}
+
+.table th,
+.table td {
+  padding: 1rem 1.5rem;
+  text-align: left;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.table th {
+  font-family: 'Bebas Kai', sans-serif;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #64748b;
+  font-weight: 400;
+}
+
+.table td {
+  font-size: 0.875rem;
+  color: #012f53;
+  font-weight: 500;
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.statusBadge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.statusCompleted {
+  background-color: #dcfce7; 
+  color: #166534; 
+}
+
+.statusInProgress {
+  background-color: #ffedd5; 
+  color: #9a3412; 
+}
+
+.actionsCell {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.actionButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: #94a3b8; 
+  transition: color 0.2s;
+}
+.actionButton:hover {
+  color: #0179d2;
+}
+
+
+.tableWrapper {
+  display: block; 
+}
+.mobileList {
+  display: none; 
+}
+
+@media (max-width: 767px) {
+  .tableWrapper {
+    display: none;
+  }
+  .mobileList {
+    display: flex;
+    flex-direction: column;
+  }
+  .mobileCard {
+    padding: 1rem;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .mobileCard:last-child {
+    border-bottom: none;
+  }
+  .mobileCardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+  }
+  .mobileCardDate {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #012f53;
+  }
+  .mobileCardBody {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .mobileCardScore {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #012f53;
+  }
+}
