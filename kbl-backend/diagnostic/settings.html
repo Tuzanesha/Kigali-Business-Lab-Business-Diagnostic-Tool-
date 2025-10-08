@@ -1,0 +1,228 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Settings</title>
+  <style>
+    body{font-family:sans-serif;background:#f3f7fc;margin:0}
+    .container{max-width:980px;margin:2rem auto;background:#fff;border-radius:8px;padding:1.25rem;border:1px solid #e4ecf7}
+    h1{letter-spacing:2px;color:#1e4a7b}
+    .tabs{display:flex;gap:24px;border-bottom:2px solid #e0e7ef;margin-bottom:16px}
+    .tab{padding:10px 4px;cursor:pointer;color:#345}
+    .tab.active{color:#0b63ce;border-bottom:3px solid #0b63ce}
+    .row{margin:10px 0}
+    label{display:block;font-size:12px;color:#345;margin-bottom:6px}
+    input, select, textarea{width:100%;padding:10px;border:1px solid #ccd8e5;border-radius:6px;background:#fff}
+    textarea{min-height:96px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .btn{background:#0b63ce;color:#fff;border:0;border-radius:6px;padding:10px 14px;cursor:pointer}
+    .btn.secondary{background:#e9f2fd;color:#0b63ce}
+    .btn.danger{background:#d93025}
+    .card{border:1px solid #e4ecf7;border-radius:8px;padding:16px;margin:12px 0}
+    .avatar{width:72px;height:72px;border-radius:50%;background:#e6eef9;display:inline-flex;align-items:center;justify-content:center;color:#1e4a7b;font-weight:700;font-size:24px;border:2px solid #cfe0f5}
+    .switch{position:relative;display:inline-block;width:48px;height:24px;vertical-align:middle}
+    .switch input{display:none}
+    .slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#c9d6e5;border-radius:999px;transition:.2s}
+    .slider:before{content:"";position:absolute;height:18px;width:18px;left:3px;top:3px;background:white;border-radius:50%;transition:.2s}
+    input:checked + .slider{background:#0b63ce}
+    input:checked + .slider:before{transform:translateX(24px)}
+    .danger-zone{border:2px solid #f2c6c4;background:#fff4f4;color:#8a1812;border-radius:8px;padding:16px;margin-top:16px}
+  </style>
+  <script>
+    function authHeaders(){
+      const t = localStorage.getItem('access');
+      return t ? {'Authorization':'Bearer '+t} : {};
+    }
+    function selectTab(id){
+      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p=>p.style.display='none');
+      document.getElementById('tab-'+id).classList.add('active');
+      document.getElementById('panel-'+id).style.display='block';
+    }
+    async function loadProfile(){
+      const r = await fetch('/api/account/profile/', {headers:{...authHeaders()}});
+      if(!r.ok) return;
+      const d = await r.json();
+      document.getElementById('full_name').value = (d.first_name||'')+ (d.last_name?(' '+d.last_name):'');
+      document.getElementById('email').value = d.email||'';
+      document.getElementById('title').value = d.title||'';
+      document.getElementById('phone').value = d.phone||'';
+      const av = document.getElementById('avatar_img');
+      if(d.avatar_url){ av.src = d.avatar_url; av.dataset.has='1'; }
+      document.getElementById('avatar_initials').innerText = initials(d.full_name||d.email||'');
+    }
+    async function saveProfile(evt){
+      evt.preventDefault();
+      const full = document.getElementById('full_name').value.trim();
+      let first='', last='';
+      if(full){ const parts = full.split(' '); first=parts.shift(); last=parts.join(' '); }
+      const body = { first_name:first, last_name:last, email:document.getElementById('email').value.trim(), title:document.getElementById('title').value.trim(), phone:document.getElementById('phone').value.trim() };
+      const r = await fetch('/api/account/profile/', {method:'PUT', headers:{'Content-Type':'application/json', ...authHeaders()}, body:JSON.stringify(body)});
+      const d = await r.json();
+      alert(d.detail || (r.ok?'Profile saved':'Failed to save profile'));
+    }
+    function initials(name){ return name.split(/\s+/).filter(Boolean).map(s=>s[0]).slice(0,2).join('').toUpperCase(); }
+    async function uploadAvatar(){
+      const f = document.getElementById('avatar').files[0];
+      if(!f) { alert('Select a file'); return; }
+      const fd = new FormData(); fd.append('avatar', f);
+      const r = await fetch('/api/account/avatar/upload/', {method:'POST', headers:{...authHeaders()}, body:fd});
+      const d = await r.json();
+      if(r.ok){ document.getElementById('avatar_img').src = d.avatar_url; alert('Photo updated'); }
+      else alert(d.detail||'Upload failed');
+    }
+    async function removeAvatar(){
+      const r = await fetch('/api/account/avatar/remove/', {method:'POST', headers:{...authHeaders()}});
+      const d = await r.json();
+      if(r.ok){ document.getElementById('avatar_img').src=''; alert('Photo removed'); }
+      else alert(d.detail||'Failed to remove');
+    }
+    async function changePassword(evt){
+      evt.preventDefault();
+      const body = { current_password:cp.value, new_password:np.value, confirm_password:npc.value };
+      const r = await fetch('/api/account/password/change/', {method:'POST', headers:{'Content-Type':'application/json', ...authHeaders()}, body:JSON.stringify(body)});
+      const d = await r.json();
+      alert(d.detail || (r.ok?'Password updated':'Failed to update password'));
+    }
+    async function deleteAccount(){
+      if(!confirm('Delete your account permanently? This cannot be undone.')) return;
+      const r = await fetch('/api/account/delete/', {method:'POST', headers:{'Content-Type':'application/json', ...authHeaders()}, body:JSON.stringify({confirm:true})});
+      const d = await r.json();
+      if(r.ok){ alert('Account deleted'); localStorage.clear(); location.href='/api/web/signup/'; }
+      else alert(d.detail||'Failed to delete account');
+    }
+    async function loadNotifications(){
+      const r = await fetch('/api/account/notifications/', {headers:{...authHeaders()}});
+      if(!r.ok) return;
+      const p = await r.json();
+      en.checked=!!p.email_notifications; pn.checked=!!p.push_notifications; wr.checked=!!p.weekly_reports; mc.checked=!!p.marketing_communications;
+    }
+    async function saveNotifications(){
+      const body = { email_notifications:en.checked, push_notifications:pn.checked, weekly_reports:wr.checked, marketing_communications:mc.checked };
+      const r = await fetch('/api/account/notifications/', {method:'PUT', headers:{'Content-Type':'application/json', ...authHeaders()}, body:JSON.stringify(body)});
+      const d = await r.json();
+      alert('Notification preferences saved');
+    }
+    async function loadEnterprise(){
+      const r = await fetch('/api/enterprise/profile/', {headers:{...authHeaders()}});
+      if(!r.ok) return;
+      const e = await r.json();
+      document.getElementById('biz_name').value = e.name||'';
+      document.getElementById('biz_location').value = e.location||'';
+      document.getElementById('biz_year').value = e.year_founded||'';
+      document.getElementById('biz_legal').value = e.legal_structure||'';
+      document.getElementById('biz_desc').value = e.description||'';
+      document.getElementById('biz_ft').value = e.full_time_employees_total||'';
+      document.getElementById('biz_pt').value = e.part_time_employees_total||'';
+      document.getElementById('biz_rev').value = e.revenue_this_year||'';
+    }
+    async function saveEnterprise(evt){
+      evt.preventDefault();
+      const body = { name:biz_name.value.trim(), location:biz_location.value.trim(), year_founded:biz_year.value?parseInt(biz_year.value,10):null, legal_structure:biz_legal.value, description:biz_desc.value, full_time_employees_total:parseInt(biz_ft.value||0,10), part_time_employees_total:parseInt(biz_pt.value||0,10), revenue_this_year:biz_rev.value };
+      const r = await fetch('/api/enterprise/profile/', {method:'PUT', headers:{'Content-Type':'application/json', ...authHeaders()}, body:JSON.stringify(body)});
+      const d = await r.json();
+      alert(d.detail || (r.ok?'Enterprise saved':'Failed to save enterprise'));
+    }
+    window.addEventListener('DOMContentLoaded', ()=>{
+      selectTab('profile');
+      loadProfile();
+      loadNotifications();
+      loadEnterprise();
+    });
+  </script>
+</head>
+<body>
+  <div class="container">
+    <h1>SETTINGS</h1>
+    <div class="tabs">
+      <div id="tab-profile" class="tab active" onclick="selectTab('profile')">Profile</div>
+      <div id="tab-account" class="tab" onclick="selectTab('account')">Account</div>
+      <div id="tab-enterprise" class="tab" onclick="selectTab('enterprise')">Enterprise Profile</div>
+      <div id="tab-notifications" class="tab" onclick="selectTab('notifications')">Notifications</div>
+    </div>
+
+    <div id="panel-profile" class="panel" style="display:block">
+      <div class="card">
+        <h3>My Profile</h3>
+        <div class="row" style="display:flex;align-items:center;gap:16px">
+          <img id="avatar_img" class="avatar" alt="avatar"/>
+          <div class="avatar" id="avatar_fallback"><span id="avatar_initials">US</span></div>
+          <div>
+            <input id="avatar" type="file" accept="image/*"/>
+            <button class="btn" onclick="uploadAvatar()">Upload Photo</button>
+            <button class="btn secondary" onclick="removeAvatar()">Remove</button>
+          </div>
+        </div>
+        <form onsubmit="saveProfile(event)">
+          <div class="row"><label>Full Name</label><input id="full_name"/></div>
+          <div class="row"><label>Email Address</label><input id="email" type="email"/></div>
+          <div class="row"><label>Role / Title</label><input id="title"/></div>
+          <div class="row"><label>Phone</label><input id="phone"/></div>
+          <button class="btn">Save Changes</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="panel-account" class="panel" style="display:none">
+      <div class="card">
+        <h3>Change Password</h3>
+        <form onsubmit="changePassword(event)">
+          <div class="row"><label>Current Password</label><input id="cp" type="password"/></div>
+          <div class="row"><label>New Password</label><input id="np" type="password"/></div>
+          <div class="row"><label>Confirm New Password</label><input id="npc" type="password"/></div>
+          <button class="btn">Update Password</button>
+        </form>
+      </div>
+      <div class="danger-zone">
+        <h3>DANGER ZONE</h3>
+        <p>Deleting your account is permanent and cannot be undone. All your data will be removed.</p>
+        <button class="btn danger" onclick="deleteAccount()">Delete My Account</button>
+      </div>
+    </div>
+
+    <div id="panel-enterprise" class="panel" style="display:none">
+      <div class="card">
+        <h3>Enterprise Details</h3>
+        <form onsubmit="saveEnterprise(event)">
+          <div class="grid">
+            <div><label>Business Name</label><input id="biz_name"/></div>
+            <div><label>Location</label><input id="biz_location"/></div>
+            <div><label>Year Founded</label><input id="biz_year" type="number"/></div>
+            <div><label>Legal Structure</label><input id="biz_legal"/></div>
+          </div>
+          <div class="row"><label>Brief Description</label><textarea id="biz_desc"></textarea></div>
+          <div class="grid">
+            <div><label>Full-time Employees</label><input id="biz_ft" type="number"/></div>
+            <div><label>Part-time Employees</label><input id="biz_pt" type="number"/></div>
+          </div>
+          <div class="row"><label>Total Revenue This Year (USD)</label><input id="biz_rev" type="number" step="0.01"/></div>
+          <button class="btn">Save Changes</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="panel-notifications" class="panel" style="display:none">
+      <div class="card">
+        <h3>Notification Preferences</h3>
+        <div class="row">
+          <label>Email Notifications</label>
+          <label class="switch"><input id="en" type="checkbox"/><span class="slider"></span></label>
+        </div>
+        <div class="row">
+          <label>Push Notifications</label>
+          <label class="switch"><input id="pn" type="checkbox"/><span class="slider"></span></label>
+        </div>
+        <div class="row">
+          <label>Weekly Reports</label>
+          <label class="switch"><input id="wr" type="checkbox"/><span class="slider"></span></label>
+        </div>
+        <div class="row">
+          <label>Marketing Communications</label>
+          <label class="switch"><input id="mc" type="checkbox"/><span class="slider"></span></label>
+        </div>
+        <button class="btn" onclick="saveNotifications()">Save Preferences</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

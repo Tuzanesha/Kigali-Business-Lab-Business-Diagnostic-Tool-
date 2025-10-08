@@ -1,0 +1,166 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Assessment</title>
+  <style>body{font-family:sans-serif;max-width:1000px;margin:2rem auto}</style>
+  <script>
+    // All-at-once editor: show every question in a single table.
+    let allQuestions = [];
+    let selectedEnterpriseId = '';
+
+    async function callAPI(path, options={}){
+      const token = localStorage.getItem('access');
+      options.headers = Object.assign({'Content-Type':'application/json'}, options.headers||{});
+      if(token){ options.headers['Authorization'] = 'Bearer '+token; }
+      const res = await fetch(path, options);
+      if(res.status===401){ location.href='/api/web/login/'; return; }
+      return res.json();
+    }
+
+    function buildScoreOptions(descriptors, value){
+      const order = [-1,0,1,2,3,4];
+      let html = '<select id="score">';
+      order.forEach(v => {
+        const key = String(v);
+        const label = descriptors && descriptors[key] ? descriptors[key] : (v===-1? 'Not Applicable' : 'Score '+v);
+        const selected = (String(value)===String(v)) ? ' selected' : '';
+        html += `<option value="${v}"${selected}>${v===-1?'NA':v} — ${label}</option>`;
+      });
+      html += '</select>';
+      return html;
+    }
+
+    function buildDescriptorList(descriptors){
+      const order = [0,1,2,3,4];
+      let html = '<ul>';
+      order.forEach(v => {
+        const key = String(v);
+        const label = descriptors && descriptors[key] ? descriptors[key] : '';
+        html += `<li><strong>${v}</strong>: ${label}</li>`;
+      });
+      if (descriptors && descriptors['-1']){
+        html += `<li><strong>NA</strong>: ${descriptors['-1']}</li>`;
+      }
+      html += '</ul>';
+      return html;
+    }
+
+    function renderAll(){
+      if(!allQuestions.length){
+        document.getElementById('qwrap').innerHTML = '<p>No questions found.</p>';
+        return;
+      }
+      let html = '<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%">';
+      html += '<thead><tr><th style="width:90px">Number</th><th>Question</th><th style="width:240px">Score</th><th>Evidence</th><th>Comments</th></tr></thead><tbody>';
+      allQuestions.forEach(q => {
+        const descriptorsHtml = buildDescriptorList(q.descriptors);
+        const scoreSelect = `
+          <select id="score_${q.number}">
+            <option value="-1">NA</option>
+            <option value="0">0</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+          </select>
+          <details><summary>Rubric</summary>${descriptorsHtml}</details>
+        `;
+        html += `
+          <tr>
+            <td><strong>${q.number}</strong><div style="color:#666;font-size:.85em">${q.category_name || q.category?.name || ''}</div></td>
+            <td>${q.text}</td>
+            <td>${scoreSelect}</td>
+            <td><input id="evidence_${q.number}" size="28"></td>
+            <td><input id="comments_${q.number}" size="28"></td>
+          </tr>
+        `;
+      });
+      html += '</tbody></table>';
+      document.getElementById('qwrap').innerHTML = html;
+    }
+
+    async function load(){
+      // Load user's enterprises first
+      const ents = await callAPI('/api/enterprises/');
+      const list = Array.isArray(ents) ? ents : [];
+      const sel = document.getElementById('enterprise_select');
+      sel.innerHTML = '';
+      if(list.length === 0){
+        document.getElementById('enterprise_info').innerHTML = 'No enterprise found. Please create one first on the Dashboard.';
+        document.getElementById('submitBtn').disabled = true;
+        return;
+      }
+      list.forEach((e, idx) => {
+        const opt = document.createElement('option');
+        opt.value = e.id;
+        opt.textContent = `${e.name} (ID ${e.id})`;
+        sel.appendChild(opt);
+        if(idx===0){ selectedEnterpriseId = String(e.id); }
+      });
+      sel.value = selectedEnterpriseId;
+      sel.addEventListener('change', (ev)=>{ selectedEnterpriseId = ev.target.value; });
+
+      // Load all questions
+      const qs = await callAPI('/api/questions/');
+      allQuestions = (qs||[]);
+      // Derive category name for display if not present
+      allQuestions = allQuestions.map(q => ({...q, category_name: q.category?.name || q.category_name || ''}));
+      renderAll();
+    }
+
+    async function submitAll(evt){
+      evt.preventDefault();
+      const enterpriseId = selectedEnterpriseId;
+      if(!enterpriseId){ alert('Select an enterprise'); return; }
+      const payload = allQuestions.map(q => {
+        const scoreEl = document.getElementById(`score_${q.number}`);
+        const evidenceEl = document.getElementById(`evidence_${q.number}`);
+        const commentsEl = document.getElementById(`comments_${q.number}`);
+        const score = scoreEl ? parseInt(scoreEl.value,10) : -1;
+        const evidence = evidenceEl ? evidenceEl.value || '' : '';
+        const comments = commentsEl ? commentsEl.value || '' : '';
+        return {
+          question_id: q.id,
+          question_number: q.number,
+          score: score,
+          evidence: evidence,
+          comments: comments
+        };
+      });
+      const res = await callAPI(`/api/enterprises/${enterpriseId}/bulk-answers/`, {method:'POST', body: JSON.stringify(payload)});
+      if(res && res.errors && res.errors.length){
+        alert('Some answers failed to save: '+JSON.stringify(res.errors));
+        return;
+      }
+      const summary = await callAPI(`/api/enterprises/${enterpriseId}/recompute/`, {method:'POST'});
+      alert('Saved all answers. Overall: '+(summary && summary.overall_percentage)+'%');
+      document.getElementById('overall').textContent = (summary && summary.overall_percentage)+'%';
+    }
+
+    window.addEventListener('load', load);
+  </script>
+</head>
+<body>
+  <h1>Assessment</h1>
+  <div style="display:flex; gap:12px; align-items:center; margin-bottom:8px">
+    <button type="button" onclick="localStorage.removeItem('access');localStorage.removeItem('refresh');location.href='/api/web/login/';">Sign out</button>
+    <a href="/api/web/dashboard/">Back to Dashboard</a>
+  </div>
+  <form onsubmit="submitAll(event)">
+    <div style="margin-bottom:10px">
+      <label>Enterprise
+        <select id="enterprise_select"></select>
+      </label>
+      <span id="enterprise_info" style="margin-left:8px;color:#666"></span>
+    </div>
+    <div id="qwrap">Loading…</div>
+    <div>
+      <button id="submitBtn" type="submit">Submit All & Recompute</button>
+    </div>
+  </form>
+  <p>Overall: <span id="overall">0%</span></p>
+</body>
+</html>
+
+
