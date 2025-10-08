@@ -1,0 +1,78 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Verify</title>
+  <style>body{font-family:sans-serif;max-width:720px;margin:2rem auto}</style>
+  <script>
+    async function callAPI(path, options={}){
+      const token = localStorage.getItem('access');
+      options.headers = Object.assign({'Content-Type':'application/json'}, options.headers||{});
+      if(token){ options.headers['Authorization'] = 'Bearer '+token; }
+      const res = await fetch(path, options);
+      if(res.status===401){ location.href='/api/web/login/'; return; }
+      return res.json();
+    }
+    function notify(msg){
+      const n = document.getElementById('notice');
+      n.textContent = msg || '';
+      n.style.display = msg ? 'block' : 'none';
+    }
+    async function send(){
+      const method = document.querySelector('input[name="method"]:checked').value;
+      if(method === 'email'){
+        const r = await callAPI('/api/auth/send-otp/', {method:'POST'});
+        if(!r) return; // redirected (unauthorized)
+        notify((r && r.detail) || 'OTP sent to your email.');
+      } else {
+        const phone = document.getElementById('phone').value.trim();
+        const r = await callAPI('/api/auth/send-phone-otp/', {method:'POST', body: JSON.stringify({phone})});
+        if(!r) return; // redirected (unauthorized)
+        notify((r && r.detail) || 'OTP sent to your phone number.');
+      }
+    }
+    async function verify(evt){
+      evt.preventDefault();
+      const method = document.querySelector('input[name="method"]:checked').value;
+      const code = document.getElementById('code').value.trim();
+      if(method === 'email'){
+        const r = await callAPI('/api/auth/verify-otp/', {method:'POST', body: JSON.stringify({code})});
+        notify((r && r.detail) || 'Email verified');
+      } else {
+        const phone = document.getElementById('phone').value.trim();
+        const r = await callAPI('/api/auth/verify-phone-otp/', {method:'POST', body: JSON.stringify({code, phone})});
+        notify((r && r.detail) || 'Phone verified');
+      }
+      // After verify, go to dashboard
+      location.href = '/api/web/dashboard/';
+    }
+    async function prefillPhone(){
+      const s = await callAPI('/api/auth/status/');
+      if(s && s.phone){ document.getElementById('phone').value = s.phone; }
+    }
+    window.addEventListener('load', prefillPhone);
+  </script>
+</head>
+<body>
+  <h1>Verify your account</h1>
+  <p>Pick Email or SMS, then enter the 6-digit code.</p>
+  <div id="notice" style="display:none;background:#eef;padding:.5rem 1rem;margin:.5rem 0;border-left:3px solid #39f"></div>
+  <div>
+    <label><input type="radio" name="method" value="email" checked /> Email</label>
+    <label style="margin-left:1rem"><input type="radio" name="method" value="sms" /> SMS</label>
+  </div>
+  <p>
+    <input id="phone" placeholder="Phone e.g. +2507..." style="display:inline-block;min-width:240px" />
+    <button onclick="send()" style="margin-left:.5rem">Send code</button>
+  </p>
+  <form onsubmit="verify(event)">
+    <div><label>Code <input id="code" maxlength="6" required /></label></div>
+    <button type="submit">Verify</button>
+  </form>
+  <p><a href="/api/web/dashboard/">Back</a></p>
+</body>
+</html>
+
+
+
+

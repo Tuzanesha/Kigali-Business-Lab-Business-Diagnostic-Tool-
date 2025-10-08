@@ -1,0 +1,134 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root{
+      --primary:#0a5cc2; --bg:#f5f7fb; --card:#fff; --muted:#6b7280; --ok:#16a34a; --warn:#d97706; --danger:#dc2626;
+    }
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu;max-width:1100px;margin:2rem auto;padding:0 1rem;background:var(--bg)}
+    h1{margin:0 0 1rem}
+    .toolbar{display:flex;gap:.75rem;align-items:center;margin-bottom:1rem}
+    .btn{background:var(--primary);color:#fff;border:none;border-radius:8px;padding:.6rem .9rem;cursor:pointer}
+    .btn.secondary{background:#1f2937}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem}
+    .card{background:var(--card);border-radius:12px;padding:1rem;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+    .card h3{margin:.2rem 0 .6rem}
+    .muted{color:var(--muted);font-size:.9rem}
+    .toast{position:fixed;right:16px;bottom:16px;display:none;max-width:360px;background:#111;color:#fff;padding:.75rem 1rem;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.2)}
+    .toast.show{display:block;animation:fadein .2s ease-out}
+    @keyframes fadein{from{opacity:.3;transform:translateY(8px)}to{opacity:1;transform:none}}
+    .row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+    a.btn-link{color:var(--primary);text-decoration:none;font-weight:600}
+    .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem}
+  </style>
+  <script>
+    function showToast(msg){
+      const t = document.getElementById('toast');
+      t.textContent = msg || '';
+      t.classList.add('show');
+      setTimeout(()=>t.classList.remove('show'), 3000);
+    }
+    async function api(path, options={}){
+      const token = localStorage.getItem('access');
+      options.headers = Object.assign({'Content-Type':'application/json'}, options.headers||{});
+      if(token){ options.headers['Authorization'] = 'Bearer '+token; }
+      const res = await fetch(path, options);
+      if(res.status===401){ location.href='/api/web/login/'; return; }
+      return res.json();
+    }
+    async function ensureVerified(){
+      const st = await api('/api/auth/status/');
+      if(!st) return false;
+      if(!st.verified){
+        showToast('Please verify your account.');
+        location.href = '/api/web/verify/';
+        return false;
+      }
+      return true;
+    }
+    async function loadEnterprises(){
+      const data = await api('/api/my/enterprises-summaries/');
+      if(!data) return;
+      const list = data.results || [];
+      const grid = document.getElementById('cards');
+      grid.innerHTML = '';
+      list.forEach((item, idx)=>{
+        const id = `chart_${item.id}`;
+        const el = document.createElement('div');
+        el.className='card';
+        const links = item.has_responses
+          ? `<a class="btn-link" href="/api/web/assessment-report/?enterprise_id=${item.id}">View Assessment</a>`
+          : `<a class="btn-link" href="/api/web/assessment/?enterprise_id=${item.id}">Add Assessment</a>`;
+        el.innerHTML = `
+          <div class="header">
+            <h3>${item.name || 'Enterprise'}</h3>
+            <div style="display:flex;gap:.75rem;align-items:center">${links}</div>
+          </div>
+          <div class="row">
+            <canvas id="${id}" width="160" height="160" aria-label="Overall score"></canvas>
+            <div>
+              <div class="muted">Overall Health Score</div>
+              <div style="font-size:28px;font-weight:700">${Math.round(item.overall_percentage||0)}%</div>
+            </div>
+          </div>
+        `;
+        grid.appendChild(el);
+        const ctx = document.getElementById(id);
+        new Chart(ctx, {
+          type:'doughnut',
+          data:{
+            labels:['Score','Remaining'],
+            datasets:[{data:[Math.round(item.overall_percentage||0), 100-Math.round(item.overall_percentage||0)], backgroundColor:['#0ea5e9','#e5e7eb'], borderWidth:0}]
+          },
+          options:{cutout:'65%', plugins:{legend:{display:false}}, animation:false}
+        });
+      });
+      document.getElementById('enterprises').textContent = list.length;
+    }
+    async function recomputeAll(){
+      const ok = await ensureVerified();
+      if(!ok) return;
+      const res = await api('/api/recompute/all/', {method:'POST'});
+      if(res && res.results){
+        showToast('Scores recomputed');
+        await loadEnterprises();
+      } else {
+        showToast('Recompute failed');
+      }
+    }
+    async function init(){
+      const ok = await ensureVerified();
+      if(!ok) return;
+      await loadEnterprises();
+    }
+    async function signOut(){
+      try{
+        const refresh = localStorage.getItem('refresh');
+        if(refresh){ await api('/api/auth/logout/', {method:'POST', body: JSON.stringify({refresh})}); }
+      }catch(e){}
+      localStorage.removeItem('access');
+      localStorage.removeItem('refresh');
+      location.href = '/api/web/login/';
+    }
+    window.addEventListener('load', init);
+  </script>
+  
+</head>
+<body>
+  <div class="toast" id="toast"></div>
+  <h1>Dashboard</h1>
+  <div class="toolbar">
+    <a class="btn secondary" href="/api/web/enterprise/new/">Create Enterprise</a>
+    <span class="muted">Total: <span id="enterprises">0</span></span>
+    <span style="flex:1"></span>
+    <a class="btn" href="/api/web/settings/">Settings</a>
+    <button class="btn secondary" onclick="signOut()">Sign Out</button>
+  </div>
+  <div class="grid" id="cards"></div>
+</body>
+</html>
+
+
