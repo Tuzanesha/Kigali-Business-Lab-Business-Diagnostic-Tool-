@@ -109,10 +109,66 @@
 .question-text { font-weight: 600; color: #012f53; margin-bottom: 1rem; }
 .question-subtext { font-size: 0.875rem; color: #64748b; margin-bottom: 1.5rem; }
 
-.radio-group { display: flex; gap: 1rem; flex-wrap: wrap; }
-.radio-item { display: flex; flex-direction: column; text-align: center; }
-.radio-label { font-size: 0.75rem; color: #64748b; margin-top: 0.25rem; }
-.radio-input { margin: 0 auto; height: 16px; width: 16px; accent-color: #0179d2; }
+
+.radio-group {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1rem;
+  max-width: 500px; 
+  margin-top: 1rem;
+  justify-items: center; 
+  text-align: center;
+}
+
+.radio-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem; 
+}
+
+.radio-label {
+  font-size: 0.875rem; 
+  color: #64748b;
+  line-height: 1.2;
+}
+
+
+.radio-input {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  margin: 0;
+  width: 24px;
+  height: 24px;
+  border: 2px solid #cbd5e1;
+  border-radius: 50%;
+  transition: all 0.2s;
+  cursor: pointer;
+  position: relative;
+}
+
+.radio-input:hover {
+  border-color: #0179d2;
+}
+
+.radio-input:checked {
+  border-color: #0179d2;
+}
+
+
+.radio-input:checked::after {
+  content: '';
+  display: block;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #0179d2;
+}
 
 .checkbox-item { display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem; }
 .checkbox-input { height: 16px; width: 16px; accent-color: #0179d2; }

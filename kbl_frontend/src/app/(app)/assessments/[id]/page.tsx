@@ -95,11 +95,11 @@ const AssessmentWizard = ({ onComplete, onExit }: { onComplete: () => void, onEx
     <div className={styles['wizard-page']}>
       <header className={styles['page-header']}><h1 className={styles['page-title']}>NEW ASSESSMENT</h1></header>
       <div className={styles['stepper-card']}>
-        <div className={styles['stepper-header']}><p className={styles['stepper-title']}>PROGRESS</p><p className={styles['stepper-progress']}>Step {currentStepIndex} of {steps.length - 1}</p></div>
-        <div className={styles['stepper-track']}>{steps.map((step, index) => (<div key={step} className={`${styles.step} ${index === currentStepIndex ? styles.active : ''} ${index < currentStepIndex ? styles.completed : ''}`}><div className={styles['step-circle']}>{index < currentStepIndex ? <Check size={14} /> : index}</div><p className={styles['step-label']}>{step}</p></div>))}</div>
+        <div className={styles['stepper-header']}><p className={styles['stepper-title']}>PROGRESS</p><p className={styles['stepper-progress']}>Step {currentStepIndex + 1} of {steps.length }</p></div>
+        <div className={styles['stepper-track']}>{steps.map((step, index) => (<div key={step} className={`${styles.step} ${index === currentStepIndex ? styles.active : ''} ${index < currentStepIndex ? styles.completed : ''}`}><div className={styles['step-circle']}>{index < currentStepIndex ? <Check size={14} /> : index + 1}</div><p className={styles['step-label']}>{step}</p></div>))}</div>
       </div>
       <div className={styles['questions-card']}>
-        <div className={styles['questions-header']}><h2 className={styles['questions-title']}>SECTION {currentStepIndex}: {currentStepName.toUpperCase()}</h2><p className={styles['questions-counter']}>Questions 1-{questions.length}</p></div>
+        <div className={styles['questions-header']}><h2 className={styles['questions-title']}>SECTION {currentStepIndex + 1}: {currentStepName.toUpperCase()}</h2><p className={styles['questions-counter']}>Questions 1-{questions.length}</p></div>
         {questions.map((q) => <Question key={q.id} question={q} answer={answers[q.id]} onAnswerChange={(id, value) => setAnswers({ ...answers, [id]: value })} />)}
         
         

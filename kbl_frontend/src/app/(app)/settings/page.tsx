@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import './settings.css';
 
 
-
 interface ButtonProps {
   children: React.ReactNode;
   onClick?: React.MouseEventHandler<HTMLButtonElement>;
@@ -37,24 +36,22 @@ interface FormTextareaProps {
 }
 
 
-
-const Button = ({ children, onClick, variant = 'primary', type = 'button' }: ButtonProps) => { 
-  const className = `button button-${variant}`; 
-  return (<button type={type} className={className} onClick={onClick}>{children}</button>); 
+const Button = ({ children, onClick, variant = 'primary', type = 'button' }: ButtonProps) => {
+    const className = `button button-${variant}`;
+    return (<button type={type} className={className} onClick={onClick}>{children}</button>);
 };
 
-const FormInput = ({ id, label, type = 'text', value, onChange, required = false }: FormInputProps) => { 
-  return (<div className="form-group"><label htmlFor={id} className="form-label">{label}</label><input type={type} id={id} name={id} value={value} onChange={onChange} className="form-input" required={required} /></div>); 
+const FormInput = ({ id, label, type = 'text', value, onChange, required = false }: FormInputProps) => {
+    return (<div className="form-group"><label htmlFor={id} className="form-label">{label}</label><input type={type} id={id} name={id} value={value} onChange={onChange} className="form-input" required={required} /></div>);
 };
 
-const FormSelect = ({ id, label, value, onChange, children }: FormSelectProps) => { 
-  return (<div className="form-group"><label htmlFor={id} className="form-label">{label}</label><select id={id} name={id} value={value} onChange={onChange} className="form-select">{children}</select></div>); 
+const FormSelect = ({ id, label, value, onChange, children }: FormSelectProps) => {
+    return (<div className="form-group"><label htmlFor={id} className="form-label">{label}</label><select id={id} name={id} value={value} onChange={onChange} className="form-select">{children}</select></div>);
 };
 
-const FormTextarea = ({ id, label, value, onChange }: FormTextareaProps) => { 
-  return (<div className="form-group grid-col-span-full"><label htmlFor={id} className="form-label">{label}</label><textarea id={id} name={id} value={value} onChange={onChange} className="form-textarea" /></div>); 
+const FormTextarea = ({ id, label, value, onChange }: FormTextareaProps) => {
+    return (<div className="form-group grid-col-span-full"><label htmlFor={id} className="form-label">{label}</label><textarea id={id} name={id} value={value} onChange={onChange} className="form-textarea" /></div>);
 };
-
 
 
 
@@ -73,11 +70,107 @@ const AccountContent = () => {
     return (<div><div className="settings-card"><h2 className="settings-card-header">CHANGE PASSWORD</h2><form className="settings-form" onSubmit={handlePasswordSubmit}><FormInput id="current" label="Current Password" type="password" value={passwordData.current} onChange={handleChange} required /><FormInput id="new" label="New Password" type="password" value={passwordData.new} onChange={handleChange} required /><FormInput id="confirm" label="Confirm New Password" type="password" value={passwordData.confirm} onChange={handleChange} required /><div className="form-actions"><Button type="submit" variant="primary">Update Password</Button></div></form></div><div className="danger-zone"><h3 className="danger-zone-header">DANGER ZONE</h3><p className="danger-zone-text">Deleting your account is permanent and cannot be undone.</p><Button variant="danger" onClick={handleDeleteAccount}>Delete My Account</Button></div></div>);
 };
 
+
 const EnterpriseProfileContent = () => {
-    const [details, setDetails] = useState({ businessName: 'KBL Solutions Inc.', location: 'New York, NY', yearFounded: '2020', legalStructure: '', description: 'Providing innovative business solutions.', fullTime: '25', partTime: '5', revenue: '1500000' });
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => { const { name, value } = e.target; setDetails(prev => ({ ...prev, [name]: value })); };
-    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); console.log('Saving Enterprise Profile:', details); };
-    return (<div className="settings-card"><h2 className="settings-card-header">Enterprise Details</h2><form className="settings-form" onSubmit={handleSubmit}><div className="form-grid"><h3 className="form-subheading">Core Details</h3><FormInput id="businessName" label="Business Name" value={details.businessName} onChange={handleChange} /><FormInput id="location" label="Location" value={details.location} onChange={handleChange} /><FormInput id="yearFounded" label="Year Founded" type="number" value={details.yearFounded} onChange={handleChange} /><FormSelect id="legalStructure" label="Legal Structure" value={details.legalStructure} onChange={handleChange}><option value="" disabled>Select legal structure</option><option value="llc">LLC</option><option value="s-corp">S Corporation</option></FormSelect><FormTextarea id="description" label="Brief Description" value={details.description} onChange={handleChange} /><h3 className="form-subheading">Company Figures</h3><FormInput id="fullTime" label="Full-time Employees" type="number" value={details.fullTime} onChange={handleChange} /><FormInput id="partTime" label="Part-time Employees" type="number" value={details.partTime} onChange={handleChange} /><FormInput id="revenue" label="Total Revenue This Year (USD)" type="number" value={details.revenue} onChange={handleChange} /><div className="form-actions grid-col-span-full"><Button type="submit" variant="primary">Save Enterprise Details</Button></div></div></form></div>);
+
+    const [enterpriseData, setEnterpriseData] = useState({
+        name: 'KBL Solutions Inc.',
+        location: 'New York, NY',
+        contact_person: 'Jane Doe',
+        phone_number: '123-456-7890',
+        email: 'contact@kblsolutions.com',
+        year_founded: 2020,
+        legal_structure: '',
+        owner_background: '',
+        description: 'Providing innovative business solutions.',
+        key_partners: '',
+        full_time_employees_total: 25,
+        full_time_employees_female: 15,
+        part_time_employees_total: 5,
+        part_time_employees_female: 3,
+        revenue_this_year: 1500000.00,
+        revenue_last_year: 1200000.00,
+        units_sold_this_year: '5000',
+        units_sold_last_year: '4000',
+        num_suppliers: 10,
+        num_customers: 200,
+        total_funding: 50000.00,
+        short_term_plans: '',
+        medium_term_plans: '',
+        long_term_plans: '',
+        market_linkage_needs: '',
+        finance_needs_amount: 10000.00,
+        key_assistance_areas: '',
+    });
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+        const { name, value, type } = e.target;
+        
+
+        const isNumberField = type === 'number';
+        const finalValue = isNumberField ? (value === '' ? '' : parseFloat(value)) : value;
+
+        setEnterpriseData(prev => ({ ...prev, [name]: finalValue }));
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        console.log('Saving Enterprise Profile:', enterpriseData);
+       
+    };
+
+    return (
+        <div className="settings-card">
+            <h2 className="settings-card-header">Enterprise Profile</h2>
+            <form className="settings-form" onSubmit={handleSubmit}>
+                <div className="form-grid">
+                    
+                    <h3 className="form-subheading grid-col-span-full">Core Information</h3>
+                    <FormInput id="name" label="Enterprise Name" value={enterpriseData.name} onChange={handleChange} />
+                    <FormInput id="location" label="Location" value={enterpriseData.location} onChange={handleChange} />
+                    <FormInput id="contact_person" label="Contact Person" value={enterpriseData.contact_person} onChange={handleChange} />
+                    <FormInput id="phone_number" label="Phone Number" type="tel" value={enterpriseData.phone_number} onChange={handleChange} />
+                    <FormInput id="email" label="Email" type="email" value={enterpriseData.email} onChange={handleChange} />
+                    <FormInput id="year_founded" label="Year Founded" type="number" value={enterpriseData.year_founded} onChange={handleChange} />
+                    <FormInput id="legal_structure" label="Legal Structure" value={enterpriseData.legal_structure} onChange={handleChange} />
+                    <FormInput id="owner_background" label="Owner Background" value={enterpriseData.owner_background} onChange={handleChange} />
+                    <FormTextarea id="description" label="Brief Description" value={enterpriseData.description} onChange={handleChange} />
+
+                    <h3 className="form-subheading grid-col-span-full">Operations & Partners</h3>
+                    <FormInput id="num_suppliers" label="Number of Suppliers" type="number" value={enterpriseData.num_suppliers} onChange={handleChange} />
+                    <FormInput id="num_customers" label="Number of Customers" type="number" value={enterpriseData.num_customers} onChange={handleChange} />
+                    <FormTextarea id="key_partners" label="Key Partners" value={enterpriseData.key_partners} onChange={handleChange} />
+
+                    <h3 className="form-subheading grid-col-span-full">Employee Information</h3>
+                    <FormInput id="full_time_employees_total" label="Total Full-time Employees" type="number" value={enterpriseData.full_time_employees_total} onChange={handleChange} />
+                    <FormInput id="full_time_employees_female" label="Female Full-time Employees" type="number" value={enterpriseData.full_time_employees_female} onChange={handleChange} />
+                    <FormInput id="part_time_employees_total" label="Total Part-time Employees" type="number" value={enterpriseData.part_time_employees_total} onChange={handleChange} />
+                    <FormInput id="part_time_employees_female" label="Female Part-time Employees" type="number" value={enterpriseData.part_time_employees_female} onChange={handleChange} />
+
+                    <h3 className="form-subheading grid-col-span-full">Financial Performance</h3>
+                    <FormInput id="revenue_this_year" label="Revenue This Year (USD)" type="number" value={enterpriseData.revenue_this_year} onChange={handleChange} />
+                    <FormInput id="revenue_last_year" label="Revenue Last Year (USD)" type="number" value={enterpriseData.revenue_last_year} onChange={handleChange} />
+                    <FormInput id="units_sold_this_year" label="Units Sold This Year" value={enterpriseData.units_sold_this_year} onChange={handleChange} />
+                    <FormInput id="units_sold_last_year" label="Units Sold Last Year" value={enterpriseData.units_sold_last_year} onChange={handleChange} />
+
+                    <h3 className="form-subheading grid-col-span-full">Funding & Needs</h3>
+                    <FormInput id="total_funding" label="Total Funding to Date (USD)" type="number" value={enterpriseData.total_funding} onChange={handleChange} />
+                    <FormInput id="finance_needs_amount" label="Current Finance Needs (USD)" type="number" value={enterpriseData.finance_needs_amount} onChange={handleChange} />
+                    <FormTextarea id="market_linkage_needs" label="Market Linkage Needs" value={enterpriseData.market_linkage_needs} onChange={handleChange} />
+                    <FormTextarea id="key_assistance_areas" label="Key Areas Where Assistance is Needed" value={enterpriseData.key_assistance_areas} onChange={handleChange} />
+                    
+                    <h3 className="form-subheading grid-col-span-full">Strategic Plans</h3>
+                    <FormTextarea id="short_term_plans" label="Short-term Plans" value={enterpriseData.short_term_plans} onChange={handleChange} />
+                    <FormTextarea id="medium_term_plans" label="Medium-term Plans" value={enterpriseData.medium_term_plans} onChange={handleChange} />
+                    <FormTextarea id="long_term_plans" label="Long-term Plans" value={enterpriseData.long_term_plans} onChange={handleChange} />
+
+                    <div className="form-actions grid-col-span-full">
+                        <Button type="submit" variant="primary">Save Enterprise Profile</Button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    );
 };
 
 const NotificationsContent = () => {
@@ -91,7 +184,6 @@ const NotificationsContent = () => {
     ];
     return (<div className="settings-card"><h2 className="settings-card-header">NOTIFICATION PREFERENCES</h2><div className="notification-list">{notificationItems.map(item => (<div key={item.key} className="notification-item"><div className="notification-text"><h3 className="notification-title">{item.title}</h3><p className="notification-description">{item.description}</p></div><label className="toggle-switch"><input type="checkbox" checked={prefs[item.key as keyof typeof prefs]} onChange={() => handleToggle(item.key as keyof typeof prefs)} /><span className="toggle-slider"></span></label></div>))}</div></div>);
 };
-
 
 
 export default function SettingsPage() {
