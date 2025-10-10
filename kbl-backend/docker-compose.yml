@@ -14,7 +14,7 @@ services:
 
   web:
     build: .
-    command: bash -c "python manage.py migrate && gunicorn config.wsgi:application -b 0.0.0.0:8000 --workers 3"
+    command: bash -c "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn config.wsgi:application -b 0.0.0.0:8000 --workers 3"
     environment:
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-change-me}
       DJANGO_DEBUG: ${DJANGO_DEBUG:-True}
