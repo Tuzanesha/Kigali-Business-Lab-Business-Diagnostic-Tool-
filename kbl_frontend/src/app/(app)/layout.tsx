@@ -18,6 +18,8 @@ export default function AppLayout({
     setSidebarOpen(!isSidebarOpen);
   };
 
+  
+
   return (
     <div className="app-layout">
       

@@ -27,9 +27,11 @@
   border: none;
   cursor: pointer;
   transition: background-color 0.3s;
+  text-decoration: none;
 }
 .newAssessmentButton:hover {
   background-color: #0167b3;
+  text-decoration: none;
 }
 
 .mainCard {

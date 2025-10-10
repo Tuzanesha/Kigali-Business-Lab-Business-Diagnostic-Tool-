@@ -3,6 +3,7 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { ArrowUp, PlusCircle, TrendingUp, AlertTriangle } from 'lucide-react';
 import styles from './dashboard.module.css';
+import Link from 'next/link';
 
 export default function DashboardPage() {
   const chartData = [
@@ -21,10 +22,11 @@ export default function DashboardPage() {
           <h1 className={styles['page-title']}>DASHBOARD</h1>
           <p className={styles['welcome-message']}>Welcome back, John Doe!</p>
         </div>
-        <button className={styles['new-assessment-button']}>
-          <PlusCircle height={20} width={20} />
-          <span>Start New Assessment</span>
-        </button>
+        <Link href="/assessments/new" className={styles.newAssessmentButton}>
+    <PlusCircle height={20} width={20} />
+    <span>Start New Assessment</span>
+</Link>
+        
       </header>
 
       <div className={styles['kpi-grid']}>
