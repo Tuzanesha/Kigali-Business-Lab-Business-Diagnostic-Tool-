@@ -1,10 +1,12 @@
 'use client';
 
+import React, { useState } from 'react';
 import { PlusCircle, Eye, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import styles from './assessments.module.css';
 import Link from 'next/link';
 
-const assessmentsData = [
+const initialAssessmentsData = [
   { id: 1, date: 'October 25, 2023', score: '87%', status: 'completed' },
   { id: 2, date: 'July 14, 2023', score: '72%', status: 'completed' },
   { id: 3, date: 'May 01, 2023', score: '65%', status: 'completed' },
@@ -12,16 +14,33 @@ const assessmentsData = [
 ];
 
 export default function AssessmentsPage() {
+  const [assessments, setAssessments] = useState(initialAssessmentsData);
+
+  const handleDelete = (assessmentId: number) => {
+    if (window.confirm('Are you sure you want to delete this assessment?')) {
+      const deletePromise = new Promise<void>((resolve) => {
+        setTimeout(() => {
+          setAssessments(prev => prev.filter(assessment => assessment.id !== assessmentId));
+          resolve();
+        }, 1000);
+      });
+
+      toast.promise(deletePromise, {
+        loading: 'Deleting assessment...',
+        success: 'Assessment deleted successfully.',
+        error: 'Could not delete assessment.',
+      });
+    }
+  };
+
   return (
     <div>
       <header className={styles.pageHeader}>
         <h1 className={styles.pageTitle}>ASSESSMENTS</h1>
-        
-          <Link href="/assessments/new" className={styles.newAssessmentButton}>
-    <PlusCircle height={20} width={20} />
-    <span>Start New Assessment</span>
-</Link>
-        
+        <Link href="/assessments/new" className={styles.newAssessmentButton}>
+          <PlusCircle height={20} width={20} />
+          <span>Start New Assessment</span>
+        </Link>
       </header>
 
       <div className={styles.mainCard}>
@@ -36,7 +55,7 @@ export default function AssessmentsPage() {
               </tr>
             </thead>
             <tbody>
-              {assessmentsData.map((assessment) => (
+              {assessments.map((assessment) => (
                 <tr key={assessment.id}>
                   <td>{assessment.date}</td>
                   <td>
@@ -46,23 +65,20 @@ export default function AssessmentsPage() {
                   </td>
                   <td>{assessment.score}</td>
                   <td className={styles.actionsCell}>
-    {/* --- THIS IS THE FIX --- */}
-    {/* Replaced the button with a Link component. */}
-    {/* The href creates a dynamic URL like /assessments/1/report */}
-    <Link href={`/assessments/${assessment.id}/report`} className={styles.actionButton} aria-label="View">
-        <Eye height={18} width={18} />
-    </Link>
-    <button className={styles.actionButton} aria-label="Delete">
-        <Trash2 height={18} width={18} />
-    </button>
-</td>
+                    <Link href={`/assessments/${assessment.id}/report`} className={styles.actionButton} aria-label="View">
+                      <Eye height={18} width={18} />
+                    </Link>
+                    <button onClick={() => handleDelete(assessment.id)} className={styles.actionButton} aria-label="Delete">
+                      <Trash2 height={18} width={18} />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
         <div className={styles.mobileList}>
-          {assessmentsData.map((assessment) => (
+          {assessments.map((assessment) => (
             <div key={assessment.id} className={styles.mobileCard}>
               <div className={styles.mobileCardHeader}>
                 <p className={styles.mobileCardDate}>{assessment.date}</p>
@@ -73,10 +89,10 @@ export default function AssessmentsPage() {
               <div className={styles.mobileCardBody}>
                 <p className={styles.mobileCardScore}>{assessment.score}</p>
                 <div className={styles.actionsCell}>
-                  <button className={styles.actionButton} aria-label="View">
+                  <Link href={`/assessments/${assessment.id}/report`} className={styles.actionButton} aria-label="View">
                     <Eye height={20} width={20} />
-                  </button>
-                  <button className={styles.actionButton} aria-label="Delete">
+                  </Link>
+                  <button onClick={() => handleDelete(assessment.id)} className={styles.actionButton} aria-label="Delete">
                     <Trash2 height={20} width={20} />
                   </button>
                 </div>

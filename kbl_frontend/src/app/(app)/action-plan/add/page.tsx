@@ -2,8 +2,9 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 import './add-task.css';
-
 
 const users = [
   { id: 'JD', name: 'John Doe' },
@@ -15,12 +16,12 @@ const users = [
 
 const priorities = ['HIGH', 'MEDIUM', 'LOW'];
 
-
 export default function AddNewTaskPage() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     title: '',
     source: '',
-    priority: 'MEDIUM', 
+    priority: 'MEDIUM',
     dueDate: '',
     assignedTo: '',
   });
@@ -32,8 +33,29 @@ export default function AddNewTaskPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    console.log('Form Submitted:', formData);
+
+    if (!formData.title || !formData.dueDate || !formData.assignedTo) {
+        toast.error('Please fill in all required fields.');
+        return;
+    }
+
+    const createTaskPromise = new Promise<void>((resolve, reject) => {
+        setTimeout(() => {
+            resolve();
+        }, 1500);
+    });
+
+    toast.promise(createTaskPromise, {
+        loading: 'Creating new task...',
+        success: 'Task created successfully!',
+        error: 'Failed to create task.',
+    });
+
+    createTaskPromise.then(() => {
+        setTimeout(() => {
+            router.push('/action-plan');
+        }, 500);
+    });
   };
 
   return (
@@ -44,7 +66,6 @@ export default function AddNewTaskPage() {
 
       <div className="form-card">
         <form onSubmit={handleSubmit} className="task-form">
-          
           <div className="form-group form-group-full">
             <label htmlFor="title" className="form-label">Task Title</label>
             <input
@@ -59,7 +80,6 @@ export default function AddNewTaskPage() {
             />
           </div>
 
-        
           <div className="form-group">
             <label htmlFor="source" className="form-label">Source Assessment</label>
             <input
@@ -73,7 +93,6 @@ export default function AddNewTaskPage() {
             />
           </div>
 
-         
           <div className="form-group">
             <label htmlFor="dueDate" className="form-label">Due Date</label>
             <input
@@ -87,7 +106,6 @@ export default function AddNewTaskPage() {
             />
           </div>
 
-        
           <div className="form-group">
             <label htmlFor="assignedTo" className="form-label">Assigned To</label>
             <select
@@ -105,7 +123,6 @@ export default function AddNewTaskPage() {
             </select>
           </div>
 
-        
           <div className="form-group">
             <label className="form-label">Priority</label>
             <div className="priority-group">
@@ -129,8 +146,7 @@ export default function AddNewTaskPage() {
               ))}
             </div>
           </div>
-          
-         
+
           <div className="form-actions">
             <Link href="/action-plan" className="button button-secondary">
               Cancel

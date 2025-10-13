@@ -3,17 +3,37 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import toast from 'react-hot-toast';
 import { MailCheck } from 'lucide-react';
 import styles from './forgot-password.module.css';
 
 export default function ForgotPasswordPage() {
+  const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    // In a real app, you would make an API call here.
-    // We'll just simulate the success state.
-    setSubmitted(true);
+
+    if (!email) {
+      toast.error('Please enter an email address.');
+      return;
+    }
+
+    const sendLinkPromise = new Promise<void>((resolve, reject) => {
+      setTimeout(() => {
+        resolve();
+      }, 1500);
+    });
+
+    toast.promise(sendLinkPromise, {
+      loading: 'Sending reset link...',
+      success: 'If an account exists, a reset link has been sent.',
+      error: 'Could not send reset link.',
+    });
+
+    sendLinkPromise.then(() => {
+      setSubmitted(true);
+    });
   };
 
   return (
@@ -21,17 +41,17 @@ export default function ForgotPasswordPage() {
       <div className={styles.wrapper}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
           <Link href="/">
-      <Image
-        src="/kbl-logo-blue.png" 
-        alt="KBL Logo"
-        width={80} 
-        height={40} 
-        priority
-      />
-    </Link>
+            <Image
+              src="/kbl-logo-blue.png"
+              alt="KBL Logo"
+              width={80}
+              height={40}
+              priority
+            />
+          </Link>
         </div>
-        
-        <h1 className={styles.title}>Reset Your Password</h1>
+
+        <h1 className={styles.title}>{submitted ? 'Email Sent' : 'Reset Your Password'}</h1>
 
         <div className={styles.card}>
           {!submitted ? (
@@ -49,6 +69,8 @@ export default function ForgotPasswordPage() {
                     id="email"
                     placeholder="Enter your email"
                     className={styles.input}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     required
                   />
                 </div>
@@ -62,7 +84,7 @@ export default function ForgotPasswordPage() {
               <MailCheck className={styles.confirmationIcon} size={64} />
               <h2 className={styles.confirmationTitle}>Check Your Email</h2>
               <p className={styles.confirmationText}>
-                If an account with that email exists, we have sent a password reset link to it.
+                Please check your inbox (and spam folder) for a message from us containing the reset link.
               </p>
             </div>
           )}
