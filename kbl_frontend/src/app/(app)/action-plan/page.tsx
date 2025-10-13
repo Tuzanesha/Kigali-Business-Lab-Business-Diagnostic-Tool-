@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import toast from 'react-hot-toast';
 import { Plus, Calendar, Check } from 'lucide-react';
 import './action-plan.css';
-import Link from 'next/link'
+import Link from 'next/link';
 
 const PriorityTag = ({ priority }: { priority: 'HIGH' | 'MEDIUM' | 'LOW' }) => {
   const styles = {
@@ -16,10 +16,9 @@ const PriorityTag = ({ priority }: { priority: 'HIGH' | 'MEDIUM' | 'LOW' }) => {
   return <span className={styles[priority]}>{priority}</span>;
 };
 
-// User Avatar Component
 const UserAvatar = ({ initials }: { initials: string }) => {
   const colors = {
-    JD: '#3b82f6', SM: '#ef4444', RJ: '#8b5cf6', 
+    JD: '#3b82f6', SM: '#ef4444', RJ: '#8b5cf6',
     LK: '#14b8a6', HR: '#f97316'
   };
   const colorKey = initials as keyof typeof colors;
@@ -30,8 +29,6 @@ const UserAvatar = ({ initials }: { initials: string }) => {
   );
 };
 
-
-// --- Initial Data ---
 const initialTasks = {
   todo: [
     { id: 'task-1', title: 'Develop a formal cashflow report', source: 'From: Financials Assessment', date: 'Mar 20, 2025', user: 'JD', priority: 'HIGH' },
@@ -56,7 +53,6 @@ const columnTitles = {
   completed: 'COMPLETED',
 };
 
-
 export default function ActionPlanPage() {
   const [columns, setColumns] = useState(initialTasks);
 
@@ -66,6 +62,11 @@ export default function ActionPlanPage() {
 
     const sourceColId = source.droppableId as keyof typeof columns;
     const destColId = destination.droppableId as keyof typeof columns;
+    
+    if (sourceColId === destColId && source.index === destination.index) {
+        return;
+    }
+
     const sourceCol = [...columns[sourceColId]];
     const destCol = sourceColId === destColId ? sourceCol : [...columns[destColId]];
     
@@ -77,6 +78,10 @@ export default function ActionPlanPage() {
       [sourceColId]: sourceCol,
       [destColId]: destCol,
     });
+
+    if (sourceColId !== destColId) {
+        toast.success(`Moved "${removed.title}" to ${columnTitles[destColId]}`);
+    }
   };
 
   return (
@@ -87,7 +92,6 @@ export default function ActionPlanPage() {
           <Plus size={18} />
           <span>Add New Task</span>
         </Link>
-
       </header>
 
       <DragDropContext onDragEnd={onDragEnd}>

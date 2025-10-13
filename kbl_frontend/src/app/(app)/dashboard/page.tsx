@@ -1,8 +1,11 @@
 'use client';
 
+import React, { useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { ArrowUp, PlusCircle, TrendingUp, AlertTriangle } from 'lucide-react';
+import toast from 'react-hot-toast';
 import styles from './dashboard.module.css';
+import Link from 'next/link';
 
 export default function DashboardPage() {
   const chartData = [
@@ -14,6 +17,19 @@ export default function DashboardPage() {
     { name: 'Operations', latest: 70, previous: 72 },
   ];
 
+  useEffect(() => {
+    const loadingPromise = new Promise<void>(resolve => setTimeout(resolve, 1000));
+
+    toast.promise(
+      loadingPromise,
+      {
+        loading: 'Loading dashboard...',
+        success: 'Welcome back, John Doe!',
+        error: 'Could not load dashboard.',
+      }
+    );
+  }, []);
+
   return (
     <div className={styles['dashboard-page']}>
       <header className={styles['page-header']}>
@@ -21,10 +37,10 @@ export default function DashboardPage() {
           <h1 className={styles['page-title']}>DASHBOARD</h1>
           <p className={styles['welcome-message']}>Welcome back, John Doe!</p>
         </div>
-        <button className={styles['new-assessment-button']}>
+        <Link href="/assessments/new" className={styles.newAssessmentButton}>
           <PlusCircle height={20} width={20} />
           <span>Start New Assessment</span>
-        </button>
+        </Link>
       </header>
 
       <div className={styles['kpi-grid']}>

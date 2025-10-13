@@ -160,3 +160,42 @@
   font-size: 0.875rem;
   color: #64748b;
 }
+
+.actionButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  width: 40px;
+  border-radius: 9999px; 
+  border: 1px solid #cbd5e1;
+  background-color: transparent;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.actionButton:hover {
+  background-color: #f1f5f9;
+  color: #012f53;
+}
+
+.newAssessmentButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  height: 2.5rem;
+  padding: 0 1rem;
+  font-size: 0.875rem;
+  background-color: #0179d2;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  text-decoration: none;
+}
+.newAssessmentButton:hover {
+  background-color: #0167b3;
+  text-decoration: none;
+}

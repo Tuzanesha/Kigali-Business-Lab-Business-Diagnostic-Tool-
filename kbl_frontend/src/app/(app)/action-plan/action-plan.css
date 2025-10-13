@@ -7,6 +7,7 @@
 
   background-color: #f4f7fa; 
   font-family: 'Inter', sans-serif;
+
 }
 
 
@@ -38,10 +39,12 @@
   color: white;
   cursor: pointer;
   transition: background-color 0.2s;
+  text-decoration: none;
 }
 
 .add-task-button:hover {
   background-color: #0058c0;
+  text-decoration: none;
 }
 
 

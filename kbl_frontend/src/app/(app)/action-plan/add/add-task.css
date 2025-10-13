@@ -100,20 +100,20 @@
   transition: all 0.2s;
 }
 
-/* Style for the selected priority */
+
 .priority-option input[type="radio"]:checked + label {
-  border-color: #1168d9; /* Blue border when selected */
+  border-color: #1168d9;
 }
 
-/* Priority colors (from action plan page) */
+
 .priority-label-high { background-color: #fecaca; color: #991b1b; }
 .priority-label-medium { background-color: #fed7aa; color: #9a3412; }
 .priority-label-low { background-color: #bbf7d0; color: #166534; }
 
 
-/* --- Form Action Buttons --- */
+
 .form-actions {
-  grid-column: 1 / -1; /* Span full width */
+  grid-column: 1 / -1; 
   display: flex;
   justify-content: flex-end;
   gap: 1rem;
