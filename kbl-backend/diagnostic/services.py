@@ -8,8 +8,14 @@ import re
 import requests
 
 from django.db.models import Prefetch
+from django.utils import timezone
+from datetime import timedelta
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
 
-from .models import Enterprise, QuestionResponse, Question, Category, ScoreSummary
+from .models import Enterprise, QuestionResponse, Question, Category, ScoreSummary, EmailOTP
 
 
 IMMEDIATE_PRIORITY_SET = {1, 2}
@@ -139,4 +145,36 @@ def send_sms_vonage(phone: str, text: str):
         logging.exception("Vonage request failed")
         return False, str(e), {}
 
+
+
+def send_verification_email(request, user, base_url: str) -> None:
+    """
+    Create/refresh an EmailOTP and send an HTML email with a verification button.
+    """
+    # Create a fresh OTP valid for 24 hours
+    code = f"{os.urandom(16).hex()}"
+    expires = timezone.now() + timedelta(hours=24)
+    EmailOTP.objects.create(user=user, code=code, expires_at=expires)
+
+    uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
+    verify_url = f"{base_url}/api/auth/verify-email/?uid={uidb64}&code={code}"
+
+    context = {
+        'user': user,
+        'brand': 'Kigali Business Lab',
+        'verify_url': verify_url,
+    }
+
+    subject = 'Verify your email'
+    html_body = render_to_string('email/verify_email.html', context)
+    text_body = (
+        f"Welcome to {context['brand']}!\n\n"
+        "Please verify your email by opening the following link:\n"
+        f"{verify_url}\n\n"
+        "This link will be valid for a limited time."
+    )
+
+    msg = EmailMultiAlternatives(subject, text_body, to=[user.email])
+    msg.attach_alternative(html_body, 'text/html')
+    msg.send(fail_silently=False)
 

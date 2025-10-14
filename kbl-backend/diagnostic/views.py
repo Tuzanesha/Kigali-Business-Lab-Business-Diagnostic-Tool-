@@ -127,10 +127,29 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
 
     def validate(self, attrs):
         # Ensure the expected username_field (which is User.USERNAME_FIELD) is populated
-        email = attrs.get('email')
+        email = (attrs.get('email') or '').strip().lower()
         if email:
             attrs[self.username_field] = email
-        return super().validate(attrs)
+        # Block login until email verified
+        data = super().validate(attrs)
+        User = get_user_model()
+        try:
+            user = User.objects.get(email__iexact=email)
+        except User.DoesNotExist:
+            return data
+        from .models import EmailOTP
+        has_email_verified = EmailOTP.objects.filter(user=user, is_verified=True).exists()
+        if not has_email_verified:
+            # re-send verification link
+            try:
+                scheme = 'https' if self.context['request'].is_secure() else 'http'
+                base = f"{scheme}://{self.context['request'].get_host()}"
+                from .services import send_verification_email
+                send_verification_email(self.context['request'], user, base)
+            except Exception:
+                pass
+            raise serializers.ValidationError({'detail': 'Please verify your email. We have re-sent the verification link to your inbox.'})
+        return data
 
 
 class EmailTokenObtainPairView(TokenObtainPairView):
@@ -174,7 +193,7 @@ class RegisterView(APIView):
 
     def post(self, request):
         full_name = request.data.get('full_name', '')
-        email = request.data.get('email')
+        email = (request.data.get('email') or '').strip().lower()
         password = request.data.get('password')
         phone = request.data.get('phone', '').strip()
         if not email or not password:
@@ -188,7 +207,15 @@ class RegisterView(APIView):
         first_name = full_name.split(' ')[0] if full_name else ''
         last_name = ' '.join(full_name.split(' ')[1:]) if ' ' in full_name else ''
         user = User.objects.create_user(email=email, password=password, first_name=first_name, last_name=last_name, username=email, phone=phone)
-        return Response({"id": user.id, "email": user.email}, status=201)
+        # Send verification email with link
+        scheme = 'https' if request.is_secure() else 'http'
+        base = f"{scheme}://{request.get_host()}"
+        from .services import send_verification_email
+        try:
+            send_verification_email(request, user, base)
+        except Exception:
+            logging.exception('Failed to send verification email')
+        return Response({"id": user.id, "email": user.email, "detail": "Account created. Please check your email to verify your account."}, status=201)
 
 
 class ProfileView(APIView):
@@ -443,17 +470,9 @@ class DashboardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        # Allow access if either email or phone has been verified
-        has_email_verified = EmailOTP.objects.filter(
-            user=request.user,
-            is_verified=True
-        ).exists()
-        has_phone_verified = PhoneOTP.objects.filter(
-            user=request.user,
-            is_verified=True
-        ).exists()
-
-        if not (has_email_verified or has_phone_verified):
+        # Require email verification only
+        has_email_verified = EmailOTP.objects.filter(user=request.user, is_verified=True).exists()
+        if not has_email_verified:
             return Response({"detail": "Verification required", "needs_otp": True}, status=403)
         
         enterprises_count = Enterprise.objects.filter(owner=request.user).count()
@@ -529,82 +548,38 @@ class VerifyEmailOTPView(APIView):
             return Response({"detail": "Invalid or expired code"}, status=400)
         otp.is_verified = True
         otp.save(update_fields=['is_verified', 'updated_at'])
-        return Response({"detail": "Email verified"})
+        # Redirect to login with next=dashboard to complete the flow
+        from django.shortcuts import redirect
+        return redirect('/api/web/login/?verified=1&next=%2Fapi%2Fweb%2Fdashboard%2F')
 
 
-class SendPhoneOTPView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+class VerifyEmailLinkView(APIView):
+    permission_classes = [permissions.AllowAny]
 
-    def post(self, request):
-        # If already verified by email or phone, do not resend
-        already_verified = (
-            EmailOTP.objects.filter(user=request.user, is_verified=True).exists() or
-            PhoneOTP.objects.filter(user=request.user, is_verified=True).exists()
-        )
-        if already_verified:
-            return Response({"detail": "Phone/email already verified."})
-
-        phone = (request.data.get('phone') or '').strip()
-        # Basic E.164 normalization (very naive): remove spaces/dashes, ensure starts with '+'
-        phone = re.sub(r"[\s-]", "", phone)
-        if phone and not phone.startswith('+') and phone.isdigit():
-            phone = '+' + phone
-        if not phone:
-            # fall back to stored user phone
-            try:
-                phone = request.user.phone
-            except Exception:
-                phone = ''
-        if not phone:
-            return Response({"detail": "Phone number is required"}, status=400)
-
-        # Generate OTP and send via Vonage SMS API
-        code = f"{random.randint(0,999999):06d}"
-        expires = timezone.now() + timedelta(minutes=10)
-        text = f"Your verification code is {code}. It expires in 10 minutes."
-        ok, err, meta = send_sms_vonage(phone, text)
-        if not ok:
-            # Log detailed provider error internally but do not expose to end users
-            try:
-                logging.error('SMS send failed: %s | meta=%s', err, meta)
-            except Exception:
-                pass
-            return Response({"detail": "Delivery not available right now."}, status=502)
-        # Store OTP only after SMS accepted by provider
-        PhoneOTP.objects.create(user=request.user, phone=phone, code=code, expires_at=expires)
-        return Response({"detail": "OTP sent to your phone number.", "expires_at": expires})
-
-
-class VerifyPhoneOTPView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request):
-        # If already verified by email or phone
-        if EmailOTP.objects.filter(user=request.user, is_verified=True).exists() or \
-           PhoneOTP.objects.filter(user=request.user, is_verified=True).exists():
-            return Response({"detail": "Phone/email already verified."})
-
-        code = request.data.get('code', '')
-        phone = (request.data.get('phone') or '').strip()
-        if not phone:
-            try:
-                phone = request.user.phone
-            except Exception:
-                phone = ''
-        if not phone:
-            return Response({"detail": "Phone number is required"}, status=400)
+    def get(self, request):
+        uidb64 = request.GET.get('uid') or ''
+        code = request.GET.get('code') or ''
+        if not (uidb64 and code):
+            return Response({"detail": "Invalid link"}, status=400)
+        User = get_user_model()
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+        except Exception:
+            return Response({"detail": "Invalid link"}, status=400)
         now = timezone.now()
         otp = (
-            PhoneOTP.objects
-            .filter(user=request.user, phone=phone, code=code, is_verified=False, expires_at__gte=now)
+            EmailOTP.objects
+            .filter(user=user, code=code, is_verified=False, expires_at__gte=now)
             .order_by('-created_at')
             .first()
         )
         if not otp:
-            return Response({"detail": "Invalid or expired code"}, status=400)
+            return Response({"detail": "Invalid or expired link"}, status=400)
         otp.is_verified = True
         otp.save(update_fields=['is_verified', 'updated_at'])
-        return Response({"detail": "Phone verified"})
+        from django.shortcuts import redirect
+        return redirect('/api/web/login/?verified=1&next=%2Fapi%2Fweb%2Fdashboard%2F')
 
 
 class AuthStatusView(APIView):
@@ -612,16 +587,15 @@ class AuthStatusView(APIView):
 
     def get(self, request):
         has_email_verified = EmailOTP.objects.filter(user=request.user, is_verified=True).exists()
-        has_phone_verified = PhoneOTP.objects.filter(user=request.user, is_verified=True).exists()
         user_phone = ''
         try:
             user_phone = request.user.phone
         except Exception:
             user_phone = ''
         return Response({
-            "verified": bool(has_email_verified or has_phone_verified),
+            "verified": bool(has_email_verified),
             "has_email_verified": has_email_verified,
-            "has_phone_verified": has_phone_verified,
+            "has_phone_verified": False,
             "phone": user_phone,
         })
 
@@ -726,8 +700,7 @@ class DashboardPageView(TemplateView):
         if not request.user.is_authenticated:
             return super().dispatch(request, *args, **kwargs)
         has_email_verified = EmailOTP.objects.filter(user=request.user, is_verified=True).exists()
-        has_phone_verified = PhoneOTP.objects.filter(user=request.user, is_verified=True).exists()
-        if not (has_email_verified or has_phone_verified):
+        if not has_email_verified:
             from django.shortcuts import redirect
             return redirect('/api/web/verify/')
         return super().dispatch(request, *args, **kwargs)

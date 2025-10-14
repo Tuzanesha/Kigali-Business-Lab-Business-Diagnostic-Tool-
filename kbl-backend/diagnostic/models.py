@@ -113,7 +113,7 @@ class Attachment(TimeStampedModel):
 
 class EmailOTP(TimeStampedModel):
     user = models.ForeignKey(User, related_name='email_otps', on_delete=models.CASCADE)
-    code = models.CharField(max_length=6)
+    code = models.CharField(max_length=64)
     expires_at = models.DateTimeField()
     is_verified = models.BooleanField(default=False)
 
