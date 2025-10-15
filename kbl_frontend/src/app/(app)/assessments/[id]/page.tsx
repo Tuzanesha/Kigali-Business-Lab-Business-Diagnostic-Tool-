@@ -14,19 +14,36 @@ interface CategoryItemProps {
 interface AssessmentReportProps {
   onRetake: () => void;
 }
-const steps = ['Leadership', 'Organisation', 'Sales', 'Financials'];
+const steps = ['Leadership', 'Organisation & Staff', 'Product & Processing', 'Service Development & Delivery', 'Market Analysis & Marketing','Sales', 'Financial Planning & Management', 'Legal & IT' ];
 const questionsForStep = {
   'Leadership': [
     { id: 'l1', text: 'How effectively does the leadership team communicate the company vision?', score: 0, options: ['None', 'Very little', 'Some', 'Good', 'Excellent'] },
     { id: 'l2', text: 'To what extent does leadership demonstrate accountability?', score: 0, options: ['None', 'Very little', 'Some', 'Good', 'Excellent'] },
     { id: 'l3', text: 'How well does the team foster innovation and creative problem-solving?', score: 0, options: ['None', 'Very little', 'Some', 'Good', 'Excellent'] },
   ],
-  'Organisation': [
+  'Organisation & Staff': [
     { id: 'o1', text: 'Are roles and responsibilities clearly defined across the company?', score: 0, options: ['None', 'Very little', 'Some', 'Good', 'Excellent'] },
     { id: 'o2', text: 'Is there an effective process for onboarding new employees?', score: 0, options: ['None', 'Very little', 'Some', 'Good', 'Excellent'] },
   ],
-  'Sales': [ { id: 's1', text: 'Is the sales process well-documented and consistently followed?', score: 0, options: ['None', 'Very little', 'Some', 'Good', 'Excellent'] } ],
-  'Financials': [ { id: 'f1', text: 'Are financial reports generated accurately and on a regular schedule?', score: 0, options: ['None', 'Very little', 'Some', 'Good', 'Excellent'] } ],
+  'Product & Processing': [ { id: 's1', text: 'Is the sales process well-documented and consistently followed?', score: 0, options: ['None', 'Very little', 'Some', 'Good', 'Excellent'] } ],
+  'Service Development & Delivery': [ { id: 'f1', text: 'Are financial reports generated accurately and on a regular schedule?', score: 0, options: ['None', 'Very little', 'Some', 'Good', 'Excellent'] } ],
+
+  'Market Analysis & Marketing': [
+    { id: 'o1', text: 'Are roles and responsibilities clearly defined across the company?', score: 0, options: ['None', 'Very little', 'Some', 'Good', 'Excellent'] },
+    { id: 'o2', text: 'Is there an effective process for onboarding new employees?', score: 0, options: ['None', 'Very little', 'Some', 'Good', 'Excellent'] },
+  ],
+  'Sales': [
+    { id: 'o1', text: 'Are roles and responsibilities clearly defined across the company?', score: 0, options: ['None', 'Very little', 'Some', 'Good', 'Excellent'] },
+    { id: 'o2', text: 'Is there an effective process for onboarding new employees?', score: 0, options: ['None', 'Very little', 'Some', 'Good', 'Excellent'] },
+  ],
+  'Financial Planning & Management': [
+    { id: 'o1', text: 'Are roles and responsibilities clearly defined across the company?', score: 0, options: ['None', 'Very little', 'Some', 'Good', 'Excellent'] },
+    { id: 'o2', text: 'Is there an effective process for onboarding new employees?', score: 0, options: ['None', 'Very little', 'Some', 'Good', 'Excellent'] },
+  ],
+  'Legal & IT': [
+    { id: 'o1', text: 'Are roles and responsibilities clearly defined across the company?', score: 0, options: ['None', 'Very little', 'Some', 'Good', 'Excellent'] },
+    { id: 'o2', text: 'Is there an effective process for onboarding new employees?', score: 0, options: ['None', 'Very little', 'Some', 'Good', 'Excellent'] },
+  ],
 };
 
 const FileUpload = ({ file, onFileChange, onFileRemove }: { file: File | null, onFileChange: (file: File) => void, onFileRemove: () => void }) => { const [isDragging, setIsDragging] = useState(false); const uniqueId = React.useId(); const handleDrag = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); }; const handleDragIn = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); if (e.dataTransfer.items?.length > 0) setIsDragging(true); }; const handleDragOut = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }; const handleDrop = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); if (e.dataTransfer.files?.length > 0) { onFileChange(e.dataTransfer.files[0]); e.dataTransfer.clearData(); } }; if (file) { return <div className={styles['file-preview']}><div className={styles['file-info']}><FileIcon size={32} /><div><p className={styles['file-name']}>{file.name}</p><p className={styles['file-size']}>{(file.size / 1024).toFixed(1)} KB</p></div></div><button onClick={onFileRemove} className={styles['remove-file-button']}><X size={18} /></button></div>; } return <div onDragEnter={handleDragIn} onDragLeave={handleDragOut} onDragOver={handleDrag} onDrop={handleDrop} className={`${styles['upload-zone']} ${isDragging ? styles.active : ''}`}><input type="file" id={uniqueId} hidden onChange={(e) => e.target.files && onFileChange(e.target.files[0])} /><label htmlFor={uniqueId} style={{ cursor: 'pointer' }}><UploadCloud className={styles['upload-icon']} size={40} /><p className={styles['upload-text-main']}>Drag & drop evidence, or click to browse</p><p className={styles['upload-text-sub']}>Supports PDF, DOCX, etc.</p></label></div>; };

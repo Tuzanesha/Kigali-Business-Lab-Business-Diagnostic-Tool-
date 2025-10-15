@@ -6,8 +6,18 @@ import { ArrowUp, PlusCircle, TrendingUp, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import styles from './dashboard.module.css';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 
 export default function DashboardPage() {
+
+  // const router = useRouter();
+
+  // const handleLogout = () => {
+  //   localStorage.removeItem('isLoggedIn');
+  //   toast.success('Logged out successfully!');
+  //   router.push('/login');
+  // };
+  
   const chartData = [
     { name: 'Leadership', latest: 75, previous: 68 },
     { name: 'Organisation', latest: 62, previous: 58 },
