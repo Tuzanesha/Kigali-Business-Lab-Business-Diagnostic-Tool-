@@ -1,23 +1,32 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation'; 
-import toast from 'react-hot-toast';        
+import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 import { Eye, EyeOff } from 'lucide-react';
 import styles from './login.module.css';
 import { apiLogin, apiAuthStatus } from '../../lib/api';
 
 export default function LoginPage() {
-  const router = useRouter(); 
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
+  useEffect(() => {
+    const isLoggedIn = localStorage.getItem('isLoggedIn');
+    if (isLoggedIn === 'true') {
+      router.push('/dashboard');
+    } else {
+      setIsLoading(false);
+    }
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); 
+    e.preventDefault();
 
     if (!email || !password) {
       toast.error('Please enter both email and password.');
@@ -48,6 +57,14 @@ export default function LoginPage() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className={styles.container}>
+        <div>Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.container}>
       <div className={styles.wrapper}>
@@ -58,7 +75,6 @@ export default function LoginPage() {
         <h1 className={styles.title}>Welcome Back</h1>
 
         <div className={styles.card}>
-
           <form onSubmit={handleSubmit} className={styles.form}>
             <div className={styles.formGroup}>
               <label htmlFor="email" className={styles.label}>Email Address</label>
@@ -67,7 +83,7 @@ export default function LoginPage() {
                 id="email"
                 placeholder="Enter your email"
                 className={styles.input}
-                value={email} 
+                value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
@@ -79,7 +95,7 @@ export default function LoginPage() {
                   id="password"
                   placeholder="Enter your password"
                   className={styles.input}
-                  value={password} 
+                  value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className={styles.eyeButton}>
