@@ -1,4 +1,5 @@
 from rest_framework import viewsets, status, permissions, serializers
+from django.db import models
 import logging
 import re
 from rest_framework.decorators import action
@@ -8,7 +9,7 @@ from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 
-from .models import Category, Question, Enterprise, QuestionResponse, ScoreSummary, Attachment, EmailOTP, PhoneOTP
+from .models import Category, Question, Enterprise, QuestionResponse, ScoreSummary, Attachment, EmailOTP, PhoneOTP, ActionItem
 from .serializers import (
     CategorySerializer,
     QuestionSerializer,
@@ -17,8 +18,9 @@ from .serializers import (
     ScoreSummarySerializer,
     AttachmentSerializer,
     EmailOTPSerializer,
+    ActionItemSerializer,
 )
-from .services import recompute_and_store_summary
+from .services import recompute_and_store_summary, compute_public_base_url, send_verification_email
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 
 
@@ -140,12 +142,17 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
         from .models import EmailOTP
         has_email_verified = EmailOTP.objects.filter(user=user, is_verified=True).exists()
         if not has_email_verified:
-            # re-send verification link
+            # Re-send verification link only if a recent unverified OTP doesn't already exist
             try:
-                scheme = 'https' if self.context['request'].is_secure() else 'http'
-                base = f"{scheme}://{self.context['request'].get_host()}"
-                from .services import send_verification_email
-                send_verification_email(self.context['request'], user, base)
+                now = timezone.now()
+                recent = EmailOTP.objects.filter(user=user, is_verified=False, expires_at__gte=now).order_by('-created_at').first()
+                # Throttle re-sends: if an OTP exists and was created within last 2 minutes, skip sending another
+                should_send = True
+                if recent and (now - recent.created_at).total_seconds() < 120:
+                    should_send = False
+                if should_send:
+                    base = compute_public_base_url(self.context['request'])
+                    send_verification_email(self.context['request'], user, base)
             except Exception:
                 pass
             raise serializers.ValidationError({'detail': 'Please verify your email. We have re-sent the verification link to your inbox.'})
@@ -184,6 +191,88 @@ class AttachmentViewSet(viewsets.ModelViewSet):
         return Attachment.objects.select_related('response').filter(response__enterprise__owner=self.request.user)
 
 
+class ActionItemViewSet(viewsets.ModelViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = ActionItemSerializer
+
+    def get_queryset(self):
+        qs = ActionItem.objects.filter(owner=self.request.user)
+        status_q = self.request.query_params.get('status')
+        if status_q in {ActionItem.STATUS_TODO, ActionItem.STATUS_INPROGRESS, ActionItem.STATUS_COMPLETED}:
+            qs = qs.filter(status=status_q)
+        enterprise_id = self.request.query_params.get('enterprise')
+        if enterprise_id:
+            try:
+                qs = qs.filter(enterprise_id=int(enterprise_id))
+            except Exception:
+                pass
+        return qs.order_by('status', 'order', 'id')
+
+    def perform_create(self, serializer):
+        # Place at end of the column by default
+        status_val = serializer.validated_data.get('status') or ActionItem.STATUS_TODO
+        max_order = (
+            ActionItem.objects
+            .filter(owner=self.request.user, status=status_val)
+            .aggregate(models.Max('order'))
+            .get('order__max') or 0
+        )
+        serializer.save(owner=self.request.user, order=max_order + 1)
+
+    @action(detail=False, methods=['get'])
+    def board(self, request):
+        items = ActionItem.objects.filter(owner=request.user).order_by('status', 'order', 'id')
+        def to_card(it: ActionItem):
+            return {
+                'id': it.id,
+                'title': it.title,
+                'source': it.source,
+                'date': it.due_date.isoformat() if it.due_date else '',
+                'user': it.assigned_to or '',
+                'priority': it.priority,
+            }
+        out = {k: [] for k in [ActionItem.STATUS_TODO, ActionItem.STATUS_INPROGRESS, ActionItem.STATUS_COMPLETED]}
+        for it in items:
+            out[it.status].append(to_card(it))
+        return Response(out)
+
+    @action(detail=False, methods=['post'], url_path='bulk-move')
+    def bulk_move(self, request):
+        """Reorder and/or move items across columns.
+        Payload: { items: [ {id, status, order}, ... ] }
+        """
+        payload = request.data if isinstance(request.data, dict) else {}
+        items = payload.get('items') or []
+        if not isinstance(items, list):
+            return Response({'detail': 'items must be a list'}, status=400)
+        # Validate all belong to user
+        ids = [i.get('id') for i in items if isinstance(i, dict)]
+        existing = {it.id: it for it in ActionItem.objects.filter(owner=request.user, id__in=ids)}
+        updates_by_status = {ActionItem.STATUS_TODO: [], ActionItem.STATUS_INPROGRESS: [], ActionItem.STATUS_COMPLETED: []}
+        for i in items:
+            try:
+                it = existing[int(i.get('id'))]
+            except Exception:
+                continue
+            status_val = i.get('status') or it.status
+            if status_val not in updates_by_status:
+                status_val = it.status
+            try:
+                order_val = int(i.get('order'))
+            except Exception:
+                order_val = it.order
+            updates_by_status[status_val].append((it, order_val))
+        # Apply new status and order; normalize ordering per column
+        for status_val, pairs in updates_by_status.items():
+            # sort pairs by provided order then id for stability
+            pairs.sort(key=lambda p: (p[1], p[0].id))
+            for new_index, (it, _given_order) in enumerate(pairs):
+                it.status = status_val
+                it.order = new_index
+                it.save(update_fields=['status', 'order', 'updated_at'])
+        return Response({'detail': 'Updated'})
+
+
 from rest_framework.views import APIView
 from django.views.generic import TemplateView
 
@@ -207,11 +296,9 @@ class RegisterView(APIView):
         first_name = full_name.split(' ')[0] if full_name else ''
         last_name = ' '.join(full_name.split(' ')[1:]) if ' ' in full_name else ''
         user = User.objects.create_user(email=email, password=password, first_name=first_name, last_name=last_name, username=email, phone=phone)
-        # Send verification email with link
-        scheme = 'https' if request.is_secure() else 'http'
-        base = f"{scheme}://{request.get_host()}"
-        from .services import send_verification_email
+        # Send verification email with link (respect proxy/public URL)
         try:
+            base = compute_public_base_url(request)
             send_verification_email(request, user, base)
         except Exception:
             logging.exception('Failed to send verification email')
@@ -550,7 +637,7 @@ class VerifyEmailOTPView(APIView):
         otp.save(update_fields=['is_verified', 'updated_at'])
         # Redirect to login with next=dashboard to complete the flow
         from django.shortcuts import redirect
-        return redirect('/api/web/login/?verified=1&next=%2Fapi%2Fweb%2Fdashboard%2F')
+        return redirect('/login?verified=1')
 
 
 class VerifyEmailLinkView(APIView):
@@ -579,7 +666,7 @@ class VerifyEmailLinkView(APIView):
         otp.is_verified = True
         otp.save(update_fields=['is_verified', 'updated_at'])
         from django.shortcuts import redirect
-        return redirect('/api/web/login/?verified=1&next=%2Fapi%2Fweb%2Fdashboard%2F')
+        return redirect('/login?verified=1')
 
 
 class AuthStatusView(APIView):

@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';        
 import { Eye, EyeOff } from 'lucide-react';
 import styles from './login.module.css';
+import { apiLogin, apiAuthStatus } from '../../lib/api';
 
 export default function LoginPage() {
   const router = useRouter(); 
@@ -23,34 +24,28 @@ export default function LoginPage() {
       return;
     }
 
-
-    const loginPromise = new Promise((resolve, reject) => {
-      setTimeout(() => {
-
-        if (email === "user@example.com" && password === "password") {
-          resolve('Login successful!');
-        } else {
-          reject('Invalid credentials');
-        }
-      }, 1500); 
-    });
-
-
-    await toast.promise(loginPromise, {
-      loading: 'Logging in...',
-      success: 'Login successful! Redirecting...',
-      error: 'Invalid email or password.',
-    });
-
-
-    loginPromise.then(() => {
-        setTimeout(() => {
-            router.push('/dashboard'); 
-        }, 500); 
-    }).catch(() => {
-
-        console.error("Login failed");
-    });
+    const id = toast.loading('Logging in...');
+    try {
+      const { access, refresh } = await apiLogin(email, password);
+      localStorage.setItem('access', access);
+      localStorage.setItem('refresh', refresh);
+      const status = await apiAuthStatus(access);
+      toast.success('Login successful! Redirecting...',{id});
+      if (status?.verified) {
+        router.push('/dashboard');
+      } else {
+        router.push('/verify');
+      }
+    } catch (err: any) {
+      const msg = String(err?.message || '').toLowerCase();
+      // If backend indicates email not verified, route to verify page without noisy error toast
+      if (msg.includes('verify your email')) {
+        toast.dismiss(id);
+        router.push('/verify');
+        return;
+      }
+      toast.error(err?.message || 'Invalid email or password.', {id});
+    }
   };
 
   return (

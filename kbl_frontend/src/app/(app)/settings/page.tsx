@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { Edit, Trash2, PlusCircle } from 'lucide-react';
 import './settings.css';
+import { useRouter } from 'next/navigation';
+import { apiProfileGet, apiProfileUpdate, apiPasswordChange, apiAccountDelete, apiNotificationsGet, apiNotificationsUpdate } from '../../../lib/api';
 
 interface ButtonProps {
   children: React.ReactNode;
@@ -55,17 +57,74 @@ const FormTextarea = ({ id, label, value, onChange }: FormTextareaProps) => {
 };
 
 const ProfileContent = () => {
-    const [profileData, setProfileData] = useState({ fullName: 'John Smith', email: 'john.smith@example.com', role: 'Administrator' });
+    const router = useRouter();
+    const [profileData, setProfileData] = useState({ fullName: '', email: '', role: '' });
+    useEffect(() => {
+        const load = async () => {
+            const id = toast.loading('Loading profile...');
+            try {
+                const access = localStorage.getItem('access');
+                if (!access) { toast.dismiss(id); router.push('/login'); return; }
+                const p = await apiProfileGet(access);
+                const fullName = (p.full_name || `${p.first_name || ''} ${p.last_name || ''}`).trim();
+                setProfileData({ fullName, email: p.email || '', role: p.title || '' });
+                toast.success('Profile loaded', { id });
+            } catch (e:any) {
+                toast.error(e?.message || 'Could not load profile.', { id });
+            }
+        };
+        load();
+    }, [router]);
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => { const { name, value } = e.target; setProfileData(prev => ({ ...prev, [name]: value })); };
-    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); const savePromise = new Promise(resolve => setTimeout(resolve, 1500)); toast.promise(savePromise, { loading: 'Saving profile...', success: 'Profile updated successfully!', error: 'Could not save profile.' }); };
-    return (<div className="profile-card"><h2 className="profile-card-header">MY PROFILE</h2><div className="avatar-section"><div className="avatar">JS</div><div className="avatar-actions"><Button variant="primary">Upload Photo</Button><Button variant="secondary">Remove</Button></div></div><form className="profile-form" onSubmit={handleSubmit}><FormInput id="fullName" label="Full Name" value={profileData.fullName} onChange={handleChange} /><FormInput id="email" label="Email Address" type="email" value={profileData.email} onChange={handleChange} /><FormInput id="role" label="Role / Title" value={profileData.role} onChange={handleChange} /><div className="form-actions"><Button type="submit" variant="primary">Save Changes</Button></div></form></div>);
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const id = toast.loading('Saving profile...');
+        try {
+            const access = localStorage.getItem('access')!;
+            const [first_name, ...rest] = profileData.fullName.split(' ');
+            const last_name = rest.join(' ');
+            const out = await apiProfileUpdate(access, { first_name, last_name, email: profileData.email, title: profileData.role });
+            const fullName = (out.full_name || `${out.first_name || ''} ${out.last_name || ''}`).trim();
+            setProfileData({ fullName, email: out.email || '', role: out.title || '' });
+            toast.success('Profile updated successfully!', { id });
+        } catch (e:any) {
+            toast.error(e?.message || 'Could not save profile.', { id });
+        }
+    };
+    return (<div className="profile-card"><h2 className="profile-card-header">MY PROFILE</h2><div className="avatar-section"><div className="avatar">{(profileData.fullName || 'U').split(' ').map(s=>s[0]).join('').slice(0,2).toUpperCase()}</div><div className="avatar-actions"><Button variant="primary">Upload Photo</Button><Button variant="secondary">Remove</Button></div></div><form className="profile-form" onSubmit={handleSubmit}><FormInput id="fullName" label="Full Name" value={profileData.fullName} onChange={handleChange} /><FormInput id="email" label="Email Address" type="email" value={profileData.email} onChange={handleChange} /><FormInput id="role" label="Role / Title" value={profileData.role} onChange={handleChange} /><div className="form-actions"><Button type="submit" variant="primary">Save Changes</Button></div></form></div>);
 };
 
 const AccountContent = () => {
+    const router = useRouter();
     const [passwordData, setPasswordData] = useState({ current: '', new: '', confirm: '' });
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => { const { name, value } = e.target; setPasswordData(prev => ({...prev, [name]: value})); };
-    const handlePasswordSubmit = (e: React.FormEvent) => { e.preventDefault(); if (passwordData.new !== passwordData.confirm) { toast.error("New passwords do not match!"); return; } const passwordPromise = new Promise((resolve, reject) => setTimeout(() => resolve('Success'), 1500)); toast.promise(passwordPromise, { loading: 'Updating password...', success: 'Password updated successfully!', error: 'Failed to update password.' }); };
-    const handleDeleteAccount = () => { if (window.confirm("Are you sure you want to delete your account? This action is permanent.")) { const deletePromise = new Promise(resolve => setTimeout(resolve, 2000)); toast.promise(deletePromise, { loading: 'Deleting account...', success: 'Account deleted.', error: 'Could not delete account.' }); } };
+    const handlePasswordSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (passwordData.new !== passwordData.confirm) { toast.error("New passwords do not match!"); return; }
+        const id = toast.loading('Updating password...');
+        try {
+            const access = localStorage.getItem('access')!;
+            await apiPasswordChange(access, passwordData.current, passwordData.new, passwordData.confirm);
+            setPasswordData({ current: '', new: '', confirm: '' });
+            toast.success('Password updated successfully!', { id });
+        } catch (e:any) {
+            toast.error(e?.message || 'Failed to update password.', { id });
+        }
+    };
+    const handleDeleteAccount = async () => {
+        if (!window.confirm("Are you sure you want to delete your account? This action is permanent.")) return;
+        const id = toast.loading('Deleting account...');
+        try {
+            const access = localStorage.getItem('access')!;
+            await apiAccountDelete(access);
+            localStorage.removeItem('access');
+            localStorage.removeItem('refresh');
+            toast.success('Account deleted.', { id });
+            router.push('/login');
+        } catch (e:any) {
+            toast.error(e?.message || 'Could not delete account.', { id });
+        }
+    };
     return (<div><div className="settings-card"><h2 className="settings-card-header">CHANGE PASSWORD</h2><form className="settings-form" onSubmit={handlePasswordSubmit}><FormInput id="current" label="Current Password" type="password" value={passwordData.current} onChange={handleChange} required /><FormInput id="new" label="New Password" type="password" value={passwordData.new} onChange={handleChange} required /><FormInput id="confirm" label="Confirm New Password" type="password" value={passwordData.confirm} onChange={handleChange} required /><div className="form-actions"><Button type="submit" variant="primary">Update Password</Button></div></form></div><div className="danger-zone"><h3 className="danger-zone-header">DANGER ZONE</h3><p className="danger-zone-text">Deleting your account is permanent and cannot be undone.</p><Button variant="danger" onClick={handleDeleteAccount}>Delete My Account</Button></div></div>);
 };
 
@@ -131,10 +190,44 @@ const TeamContent = () => {
 };
 
 const NotificationsContent = () => {
-    const [prefs, setPrefs] = useState({ email: true, push: false, reports: true, marketing: false });
-    const handleToggle = (key: keyof typeof prefs) => { setPrefs(prev => { const newPrefs = { ...prev, [key]: !prev[key] }; toast.success(`${key.charAt(0).toUpperCase() + key.slice(1)} notifications ${newPrefs[key] ? 'enabled' : 'disabled'}.`); return newPrefs; }); };
-    const notificationItems = [ { key: 'email', title: 'Email Notifications', description: 'Receive updates about your projects and account' }, { key: 'push', title: 'Push Notifications', description: 'Get notified about important updates on your device' }, { key: 'reports', title: 'Weekly Reports', description: 'Receive weekly summaries of your activity' }, { key: 'marketing', title: 'Marketing Communications', description: 'Receive news about new features and updates' }, ];
-    return (<div className="settings-card"><h2 className="settings-card-header">NOTIFICATION PREFERENCES</h2><div className="notification-list">{notificationItems.map(item => (<div key={item.key} className="notification-item"><div className="notification-text"><h3 className="notification-title">{item.title}</h3><p className="notification-description">{item.description}</p></div><label className="toggle-switch"><input type="checkbox" checked={prefs[item.key as keyof typeof prefs]} onChange={() => handleToggle(item.key as keyof typeof prefs)} /><span className="toggle-slider"></span></label></div>))}</div></div>);
+    const router = useRouter();
+    const [prefs, setPrefs] = useState({ email_notifications: true, push_notifications: false, weekly_reports: true, marketing_communications: false });
+    useEffect(() => {
+        const load = async () => {
+            const id = toast.loading('Loading notifications...');
+            try {
+                const access = localStorage.getItem('access');
+                if (!access) { toast.dismiss(id); router.push('/login'); return; }
+                const n = await apiNotificationsGet(access);
+                setPrefs({
+                    email_notifications: !!n.email_notifications,
+                    push_notifications: !!n.push_notifications,
+                    weekly_reports: !!n.weekly_reports,
+                    marketing_communications: !!n.marketing_communications,
+                });
+                toast.success('Preferences loaded', { id });
+            } catch (e:any) { toast.error(e?.message || 'Failed to load notifications.', { id }); }
+        };
+        load();
+    }, [router]);
+    const toggle = async (key: keyof typeof prefs) => {
+        const next = { ...prefs, [key]: !prefs[key] };
+        setPrefs(next);
+        try {
+            const access = localStorage.getItem('access')!;
+            await apiNotificationsUpdate(access, next);
+            toast.success('Preferences updated');
+        } catch (e:any) {
+            toast.error(e?.message || 'Failed to update preferences');
+        }
+    };
+    const notificationItems = [
+        { key: 'email_notifications', title: 'Email Notifications', description: 'Receive updates about your projects and account' },
+        { key: 'push_notifications', title: 'Push Notifications', description: 'Get notified about important updates on your device' },
+        { key: 'weekly_reports', title: 'Weekly Reports', description: 'Receive weekly summaries of your activity' },
+        { key: 'marketing_communications', title: 'Marketing Communications', description: 'Receive news about new features and updates' },
+    ] as const;
+    return (<div className="settings-card"><h2 className="settings-card-header">NOTIFICATION PREFERENCES</h2><div className="notification-list">{notificationItems.map(item => (<div key={item.key} className="notification-item"><div className="notification-text"><h3 className="notification-title">{item.title}</h3><p className="notification-description">{item.description}</p></div><label className="toggle-switch"><input type="checkbox" checked={prefs[item.key]} onChange={() => toggle(item.key)} /><span className="toggle-slider"></span></label></div>))}</div></div>);
 };
 
 export default function SettingsPage() {

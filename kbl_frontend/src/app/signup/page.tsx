@@ -7,18 +7,20 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { Eye, EyeOff } from 'lucide-react';
 import styles from './signup.module.css';
+import { apiRegister } from '../../lib/api';
 
 export default function SignUpPage() {
   const router = useRouter();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!fullName || !email || !password) {
+    if (!fullName || !email || !password || !phone) {
       toast.error('Please fill in all fields.');
       return;
     }
@@ -26,30 +28,14 @@ export default function SignUpPage() {
       toast.error('Password must be at least 8 characters long.');
       return;
     }
-
-    const signupPromise = new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (email.includes('@')) {
-          resolve('Account created successfully!');
-        } else {
-          reject('Failed to create account.');
-        }
-      }, 1500);
-    });
-
-    await toast.promise(signupPromise, {
-      loading: 'Creating account...',
-      success: 'Account created! Redirecting...',
-      error: 'Could not create account.',
-    });
-
-    signupPromise.then(() => {
-      setTimeout(() => {
-        router.push('/dashboard');
-      }, 500);
-    }).catch((error) => {
-      console.error("Signup failed:", error);
-    });
+    const id = toast.loading('Creating account...');
+    try {
+      await apiRegister(fullName, email, password, phone);
+      toast.success('Verification link sent to your email.', { id });
+      router.push('/login');
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not create account.', { id });
+    }
   };
 
   return (
@@ -98,6 +84,21 @@ export default function SignUpPage() {
                   className={styles.input}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label htmlFor="phone" className={styles.label}>
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  id="phone"
+                  placeholder="Enter your phone number"
+                  className={styles.input}
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
                   required
                 />
               </div>

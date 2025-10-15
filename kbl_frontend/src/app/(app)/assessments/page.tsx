@@ -1,20 +1,40 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { PlusCircle, Eye, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import styles from './assessments.module.css';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { apiMySummaries } from '../../../lib/api';
 
-const initialAssessmentsData = [
-  { id: 1, date: 'October 25, 2023', score: '87%', status: 'completed' },
-  { id: 2, date: 'July 14, 2023', score: '72%', status: 'completed' },
-  { id: 3, date: 'May 01, 2023', score: '65%', status: 'completed' },
-  { id: 4, date: 'March 20, 2023', score: 'N/A', status: 'in-progress' },
-];
+type AssessmentItem = { id: number; date: string; score: string; status: 'completed'|'in-progress' };
 
 export default function AssessmentsPage() {
-  const [assessments, setAssessments] = useState(initialAssessmentsData);
+  const router = useRouter();
+  const [assessments, setAssessments] = useState<AssessmentItem[]>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      const id = toast.loading('Loading assessments...');
+      try {
+        const access = localStorage.getItem('access');
+        if (!access) { toast.dismiss(id); router.push('/login'); return; }
+        const data = await apiMySummaries(access);
+        const items: AssessmentItem[] = (data?.results || []).map((r: any) => ({
+          id: r.id,
+          date: r.updated_at ? new Date(r.updated_at).toLocaleDateString() : '—',
+          score: typeof r.overall_percentage === 'number' ? `${Math.round(r.overall_percentage)}%` : 'N/A',
+          status: r.has_responses ? 'completed' : 'in-progress',
+        }));
+        setAssessments(items);
+        toast.success('Assessments loaded', { id });
+      } catch (e:any) {
+        toast.error(e?.message || 'Could not load assessments.', { id });
+      }
+    };
+    load();
+  }, [router]);
 
   const handleDelete = (assessmentId: number) => {
     if (window.confirm('Are you sure you want to delete this assessment?')) {
@@ -65,7 +85,7 @@ export default function AssessmentsPage() {
                   </td>
                   <td>{assessment.score}</td>
                   <td className={styles.actionsCell}>
-                    <Link href={`/assessments/${assessment.id}/report`} className={styles.actionButton} aria-label="View">
+                    <Link href={`/assessments/${assessment.id}`} className={styles.actionButton} aria-label="View">
                       <Eye height={18} width={18} />
                     </Link>
                     <button onClick={() => handleDelete(assessment.id)} className={styles.actionButton} aria-label="Delete">
@@ -89,7 +109,7 @@ export default function AssessmentsPage() {
               <div className={styles.mobileCardBody}>
                 <p className={styles.mobileCardScore}>{assessment.score}</p>
                 <div className={styles.actionsCell}>
-                  <Link href={`/assessments/${assessment.id}/report`} className={styles.actionButton} aria-label="View">
+                  <Link href={`/assessments/${assessment.id}`} className={styles.actionButton} aria-label="View">
                     <Eye height={20} width={20} />
                   </Link>
                   <button onClick={() => handleDelete(assessment.id)} className={styles.actionButton} aria-label="Delete">

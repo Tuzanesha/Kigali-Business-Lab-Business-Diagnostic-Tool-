@@ -157,7 +157,7 @@ def send_verification_email(request, user, base_url: str) -> None:
     EmailOTP.objects.create(user=user, code=code, expires_at=expires)
 
     uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
-    verify_url = f"{base_url}/api/auth/verify-email/?uid={uidb64}&code={code}"
+    verify_url = f"{base_url.rstrip('/')}/api/auth/verify-email/?uid={uidb64}&code={code}"
 
     context = {
         'user': user,
@@ -177,4 +177,19 @@ def send_verification_email(request, user, base_url: str) -> None:
     msg = EmailMultiAlternatives(subject, text_body, to=[user.email])
     msg.attach_alternative(html_body, 'text/html')
     msg.send(fail_silently=False)
+
+
+def compute_public_base_url(request) -> str:
+    """Compute a public-facing base URL using headers or env.
+    Precedence:
+    1) PUBLIC_BASE_URL env var
+    2) X-Forwarded-Proto + X-Forwarded-Host
+    3) request.scheme + request.get_host()
+    """
+    env = os.environ.get('PUBLIC_BASE_URL')
+    if env:
+        return env.rstrip('/')
+    proto = request.META.get('HTTP_X_FORWARDED_PROTO') or ('https' if request.is_secure() else 'http')
+    host = request.META.get('HTTP_X_FORWARDED_HOST') or request.get_host()
+    return f"{proto}://{host}".rstrip('/')
 

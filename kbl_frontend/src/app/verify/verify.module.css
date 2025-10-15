@@ -1,0 +1,10 @@
+.container { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f8fafc; }
+.wrapper { width: 100%; max-width: 480px; padding: 1rem; }
+.title { text-align: center; font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; color: #0f172a; }
+.card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.75rem; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+.cardContent { padding: 1.25rem; }
+.message { color: #334155; margin-bottom: 1rem; line-height: 1.6; text-align: center; }
+.actions { display: flex; justify-content: center; margin-top: 0.5rem; }
+.button { display: inline-block; background: #01497f; color: white; padding: 0.6rem 1rem; border-radius: 0.5rem; text-decoration: none; font-weight: 600; }
+.button:hover { background: #013a64; }
+.note { margin-top: 1rem; color: #64748b; font-size: 0.9rem; text-align: center; }

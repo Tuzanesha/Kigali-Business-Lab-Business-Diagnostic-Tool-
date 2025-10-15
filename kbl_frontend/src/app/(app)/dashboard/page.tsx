@@ -1,13 +1,18 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { ArrowUp, PlusCircle, TrendingUp, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import styles from './dashboard.module.css';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { apiDashboard } from '../../../lib/api';
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const [overallPct, setOverallPct] = useState<number>(0);
+  const [enterprises, setEnterprises] = useState<number>(0);
   const chartData = [
     { name: 'Leadership', latest: 75, previous: 68 },
     { name: 'Organisation', latest: 62, previous: 58 },
@@ -18,17 +23,28 @@ export default function DashboardPage() {
   ];
 
   useEffect(() => {
-    const loadingPromise = new Promise<void>(resolve => setTimeout(resolve, 1000));
-
-    toast.promise(
-      loadingPromise,
-      {
-        loading: 'Loading dashboard...',
-        success: 'Welcome back, John Doe!',
-        error: 'Could not load dashboard.',
+    const load = async () => {
+      const id = toast.loading('Loading dashboard...');
+      try {
+        const access = localStorage.getItem('access');
+        if (!access) {
+          toast.dismiss(id);
+          router.push('/login');
+          return;
+        }
+        const data = await apiDashboard(access);
+        setOverallPct(Number(data?.latest_overall_percentage || 0));
+        setEnterprises(Number(data?.enterprises || 0));
+        toast.success('Dashboard loaded', { id });
+      } catch (e:any) {
+        toast.error(e?.message || 'Could not load dashboard.', { id });
+        if ((e?.message||'').toLowerCase().includes('unauthorized') || (e?.message||'').includes('403')) {
+          router.push('/login');
+        }
       }
-    );
-  }, []);
+    };
+    load();
+  }, [router]);
 
   return (
     <div className={styles['dashboard-page']}>
@@ -46,7 +62,7 @@ export default function DashboardPage() {
       <div className={styles['kpi-grid']}>
         <div className={styles['kpi-card']}>
           <p className={styles['kpi-title']}>Overall Health Score</p>
-          <p className={styles['kpi-value']}>72%</p>
+          <p className={styles['kpi-value']}>{Math.round(overallPct)}%</p>
           <p className={styles['kpi-subtext']}>
             <ArrowUp color="green" height={16} width={16} />
             +5% vs last assessment

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import './add-task.css';
+import { apiActionCreate } from '../../../../lib/api';
 
 const users = [
   { id: 'JD', name: 'John Doe' },
@@ -31,31 +32,31 @@ export default function AddNewTaskPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.title || !formData.dueDate || !formData.assignedTo) {
-        toast.error('Please fill in all required fields.');
-        return;
+      toast.error('Please fill in all required fields.');
+      return;
     }
 
-    const createTaskPromise = new Promise<void>((resolve, reject) => {
-        setTimeout(() => {
-            resolve();
-        }, 1500);
-    });
-
-    toast.promise(createTaskPromise, {
-        loading: 'Creating new task...',
-        success: 'Task created successfully!',
-        error: 'Failed to create task.',
-    });
-
-    createTaskPromise.then(() => {
-        setTimeout(() => {
-            router.push('/action-plan');
-        }, 500);
-    });
+    const id = toast.loading('Creating new task...');
+    try {
+      const access = localStorage.getItem('access');
+      if (!access) { toast.dismiss(id); router.push('/login'); return; }
+      await apiActionCreate(access, {
+        title: formData.title,
+        source: formData.source,
+        priority: formData.priority as 'HIGH'|'MEDIUM'|'LOW',
+        due_date: formData.dueDate,
+        assigned_to: formData.assignedTo,
+        status: 'todo',
+      });
+      toast.success('Task created successfully!', { id });
+      router.push('/action-plan');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to create task.', { id });
+    }
   };
 
   return (

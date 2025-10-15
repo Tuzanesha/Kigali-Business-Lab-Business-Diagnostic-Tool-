@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Category, Question, Enterprise, QuestionResponse, ScoreSummary, Attachment, EmailOTP
+from .models import Category, Question, Enterprise, QuestionResponse, ScoreSummary, Attachment, EmailOTP, ActionItem
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -108,4 +108,13 @@ class EmailOTPSerializer(serializers.ModelSerializer):
         fields = ['id', 'user', 'code', 'expires_at', 'is_verified', 'created_at', 'updated_at']
         read_only_fields = ['user', 'is_verified', 'created_at', 'updated_at']
 
+
+class ActionItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ActionItem
+        fields = [
+            'id', 'owner', 'enterprise', 'title', 'source', 'priority', 'due_date',
+            'assigned_to', 'status', 'order', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'owner', 'created_at', 'updated_at']
 

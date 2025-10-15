@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import toast from 'react-hot-toast';
 import { Plus, Calendar, Check } from 'lucide-react';
 import './action-plan.css';
 import Link from 'next/link';
+import { apiActionBoard, apiActionBulkMove } from '../../../lib/api';
 
 const PriorityTag = ({ priority }: { priority: 'HIGH' | 'MEDIUM' | 'LOW' }) => {
   const styles = {
@@ -29,46 +30,51 @@ const UserAvatar = ({ initials }: { initials: string }) => {
   );
 };
 
-const initialTasks = {
-  todo: [
-    { id: 'task-1', title: 'Develop a formal cashflow report', source: 'From: Financials Assessment', date: 'Mar 20, 2025', user: 'JD', priority: 'HIGH' },
-    { id: 'task-2', title: 'Implement monthly all-hands meetings', source: 'From: Leadership Assessment', date: 'Mar 15, 2025', user: 'SM', priority: 'HIGH' },
-    { id: 'task-3', title: 'Create standardized sales documentation', source: 'From: Sales Assessment', date: 'Apr 1, 2025', user: 'RJ', priority: 'MEDIUM' },
-    { id: 'task-4', title: 'Establish customer complaint resolution process', source: 'From: Service Assessment', date: 'Mar 25, 2025', user: 'LK', priority: 'MEDIUM' },
-    { id: 'task-5', title: 'Set up innovation program framework', source: 'From: Leadership Assessment', date: 'Apr 15, 2025', user: 'JD', priority: 'LOW' },
-  ],
-  inprogress: [
-    { id: 'task-6', title: 'Improve customer service response times', source: 'From: Service Assessment', date: 'Mar 18, 2025', user: 'LK', priority: 'HIGH' },
-    { id: 'task-7', title: 'Update job descriptions for all positions', source: 'From: Organisation Assessment', date: 'Mar 30, 2025', user: 'HR', priority: 'MEDIUM' },
-  ],
-  completed: [
-    { id: 'task-8', title: 'Conduct customer satisfaction survey', source: 'From: Product Assessment', date: 'Mar 10, 2025', user: 'LK', priority: 'MEDIUM' },
-    { id: 'task-9', title: 'Implement digital marketing ROI tracking', source: 'From: Marketing Assessment', date: 'Mar 5, 2025', user: 'JD', priority: 'LOW' },
-  ],
-};
+type Task = { id: number; title: string; source: string; date: string; user: string; priority: 'HIGH'|'MEDIUM'|'LOW' };
+type Columns = { todo: Task[]; inprogress: Task[]; completed: Task[] };
 
 const columnTitles = {
   todo: 'TO DO',
   inprogress: 'IN PROGRESS',
   completed: 'COMPLETED',
-};
+} as const;
 
 export default function ActionPlanPage() {
-  const [columns, setColumns] = useState(initialTasks);
+  const [columns, setColumns] = useState<Columns>({ todo: [], inprogress: [], completed: [] });
 
-  const onDragEnd = (result: DropResult) => {
+  useEffect(() => {
+    const load = async () => {
+      const id = toast.loading('Loading action plan...');
+      try {
+        const access = localStorage.getItem('access');
+        if (!access) { toast.dismiss(id); return; }
+        const data = await apiActionBoard(access);
+        setColumns({
+          todo: (data?.todo || []) as Task[],
+          inprogress: (data?.inprogress || []) as Task[],
+          completed: (data?.completed || []) as Task[],
+        });
+        toast.success('Action plan loaded', { id });
+      } catch (e:any) {
+        toast.error(e?.message || 'Failed to load action plan', { id });
+      }
+    };
+    load();
+  }, []);
+
+  const onDragEnd = async (result: DropResult) => {
     const { source, destination } = result;
     if (!destination) return;
 
-    const sourceColId = source.droppableId as keyof typeof columns;
-    const destColId = destination.droppableId as keyof typeof columns;
+    const sourceColId = source.droppableId as keyof Columns;
+    const destColId = destination.droppableId as keyof Columns;
     
     if (sourceColId === destColId && source.index === destination.index) {
         return;
     }
 
-    const sourceCol = [...columns[sourceColId]];
-    const destCol = sourceColId === destColId ? sourceCol : [...columns[destColId]];
+    const sourceCol = [...columns[sourceColId]] as Task[];
+    const destCol = sourceColId === destColId ? sourceCol : [...columns[destColId]] as Task[];
     
     const [removed] = sourceCol.splice(source.index, 1);
     destCol.splice(destination.index, 0, removed);
@@ -79,8 +85,25 @@ export default function ActionPlanPage() {
       [destColId]: destCol,
     });
 
-    if (sourceColId !== destColId) {
-        toast.success(`Moved "${removed.title}" to ${columnTitles[destColId]}`);
+    // Persist new ordering to backend
+    try {
+      const access = localStorage.getItem('access');
+      if (access) {
+        const build = (col: keyof Columns) => (columns[col] as Task[]).map((t, idx) => ({ id: Number(t.id), status: col, order: idx }));
+        const next = {
+          ...columns,
+          [sourceColId]: sourceCol,
+          [destColId]: destCol,
+        } as Columns;
+        const items = (['todo','inprogress','completed'] as Array<keyof Columns>)
+          .flatMap((c) => (next[c] as Task[]).map((t, idx) => ({ id: Number(t.id), status: c, order: idx })));
+        await apiActionBulkMove(access, items);
+      }
+      if (sourceColId !== destColId) {
+        toast.success(`Moved "${removed.title}" to ${columnTitles[destColId] as 'TO DO'|'IN PROGRESS'|'COMPLETED'}`);
+      }
+    } catch (e:any) {
+      toast.error(e?.message || 'Failed to save new order');
     }
   };
 
@@ -96,17 +119,17 @@ export default function ActionPlanPage() {
 
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="kanban-board">
-          {Object.entries(columns).map(([columnId, tasks]) => (
+          {(Object.entries(columns) as Array<[keyof Columns, Task[]]>).map(([columnId, tasks]) => (
             <Droppable key={columnId} droppableId={columnId}>
               {(provided) => (
                 <div className="kanban-column" ref={provided.innerRef} {...provided.droppableProps}>
                   <div className="column-header">
-                    <h2 className="column-title">{columnTitles[columnId as keyof typeof columnTitles]}</h2>
+                    <h2 className="column-title">{columnTitles[columnId]}</h2>
                     <span className="task-count">{tasks.length}</span>
                   </div>
                   <div className="task-list">
-                    {tasks.map((task, index) => (
-                      <Draggable key={task.id} draggableId={task.id} index={index}>
+                    {tasks.map((task: Task, index: number) => (
+                      <Draggable key={String(task.id)} draggableId={String(task.id)} index={index}>
                         {(provided) => (
                           <div
                             className="task-card"

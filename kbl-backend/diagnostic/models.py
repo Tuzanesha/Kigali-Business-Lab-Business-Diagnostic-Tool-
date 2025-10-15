@@ -142,3 +142,38 @@ class NotificationPreference(TimeStampedModel):
     def __str__(self) -> str:
         return f"Notification prefs for {self.user_id}"
 
+
+class ActionItem(TimeStampedModel):
+    PRIORITY_HIGH = 'HIGH'
+    PRIORITY_MEDIUM = 'MEDIUM'
+    PRIORITY_LOW = 'LOW'
+    PRIORITY_CHOICES = (
+        (PRIORITY_HIGH, 'High'),
+        (PRIORITY_MEDIUM, 'Medium'),
+        (PRIORITY_LOW, 'Low'),
+    )
+
+    STATUS_TODO = 'todo'
+    STATUS_INPROGRESS = 'inprogress'
+    STATUS_COMPLETED = 'completed'
+    STATUS_CHOICES = (
+        (STATUS_TODO, 'To Do'),
+        (STATUS_INPROGRESS, 'In Progress'),
+        (STATUS_COMPLETED, 'Completed'),
+    )
+
+    owner = models.ForeignKey(User, related_name='action_items', on_delete=models.CASCADE)
+    enterprise = models.ForeignKey(Enterprise, related_name='action_items', on_delete=models.CASCADE, null=True, blank=True)
+    title = models.CharField(max_length=255)
+    source = models.CharField(max_length=255, blank=True)
+    priority = models.CharField(max_length=6, choices=PRIORITY_CHOICES, default=PRIORITY_MEDIUM)
+    due_date = models.DateField(null=True, blank=True)
+    assigned_to = models.CharField(max_length=16, blank=True, help_text='Assignee initials or identifier')
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_TODO)
+    order = models.IntegerField(default=0, help_text='Position within the status column')
+
+    class Meta:
+        ordering = ['status', 'order', 'id']
+
+    def __str__(self) -> str:
+        return f"{self.title} ({self.status})"

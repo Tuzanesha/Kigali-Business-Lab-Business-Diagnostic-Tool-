@@ -35,6 +35,7 @@ from .views import (
     NotificationPreferenceView,
     EnterpriseProfileView,
     SettingsPageView,
+    ActionItemViewSet,
 )
 
 router = DefaultRouter()
@@ -44,6 +45,7 @@ router.register(r'enterprises', EnterpriseViewSet, basename='enterprise')
 router.register(r'responses', QuestionResponseViewSet, basename='response')
 router.register(r'summaries', ScoreSummaryViewSet, basename='scoresummary')
 router.register(r'attachments', AttachmentViewSet, basename='attachment')
+router.register(r'action-items', ActionItemViewSet, basename='actionitem')
 
 urlpatterns = [
     path('', include(router.urls)),

@@ -1,0 +1,15 @@
+services:
+  web:
+    environment:
+      - PUBLIC_BASE_URL=http://localhost:8080
+  proxy:
+    image: nginx:stable-alpine
+    container_name: backend-proxy-1
+    volumes:
+      - ./nginx.default.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "8080:8080"
+    depends_on:
+      - web
+    networks:
+      - default
