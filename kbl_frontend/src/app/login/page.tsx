@@ -1,40 +1,46 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation'; 
-import toast from 'react-hot-toast';        
+import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 import { Eye, EyeOff } from 'lucide-react';
 import styles from './login.module.css';
 
 export default function LoginPage() {
-  const router = useRouter(); 
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
+  useEffect(() => {
+    const isLoggedIn = localStorage.getItem('isLoggedIn');
+    if (isLoggedIn === 'true') {
+      router.push('/dashboard');
+    } else {
+      setIsLoading(false);
+    }
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); 
+    e.preventDefault();
 
     if (!email || !password) {
       toast.error('Please enter both email and password.');
       return;
     }
 
-
     const loginPromise = new Promise((resolve, reject) => {
       setTimeout(() => {
-
         if (email === "user@example.com" && password === "password") {
           resolve('Login successful!');
         } else {
           reject('Invalid credentials');
         }
-      }, 1500); 
+      }, 1500);
     });
-
 
     await toast.promise(loginPromise, {
       loading: 'Logging in...',
@@ -42,16 +48,23 @@ export default function LoginPage() {
       error: 'Invalid email or password.',
     });
 
-
     loginPromise.then(() => {
-        setTimeout(() => {
-            router.push('/dashboard'); 
-        }, 500); 
+      localStorage.setItem('isLoggedIn', 'true');
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 500);
     }).catch(() => {
-
-        console.error("Login failed");
+      console.error("Login failed");
     });
   };
+
+  if (isLoading) {
+    return (
+      <div className={styles.container}>
+        <div>Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.container}>
@@ -63,7 +76,6 @@ export default function LoginPage() {
         <h1 className={styles.title}>Welcome Back</h1>
 
         <div className={styles.card}>
-
           <form onSubmit={handleSubmit} className={styles.form}>
             <div className={styles.formGroup}>
               <label htmlFor="email" className={styles.label}>Email Address</label>
@@ -72,7 +84,7 @@ export default function LoginPage() {
                 id="email"
                 placeholder="Enter your email"
                 className={styles.input}
-                value={email} 
+                value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
@@ -84,7 +96,7 @@ export default function LoginPage() {
                   id="password"
                   placeholder="Enter your password"
                   className={styles.input}
-                  value={password} 
+                  value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className={styles.eyeButton}>
