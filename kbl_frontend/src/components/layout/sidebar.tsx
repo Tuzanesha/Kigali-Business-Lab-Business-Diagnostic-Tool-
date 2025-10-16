@@ -1,8 +1,11 @@
+
 'use client';
 
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import React, { useEffect, useState } from 'react';
+import { apiProfileGet } from '../../lib/api';
 import toast from 'react-hot-toast';
 import {
   LayoutDashboard,
@@ -28,6 +31,7 @@ const navItems = [
 export function Sidebar({ isOpen }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [fullName, setFullName] = useState<string>('');
 
   const isLinkActive = (href: string) => {
     return href === '/dashboard' ? pathname === href : pathname.startsWith(href);
@@ -40,6 +44,27 @@ export function Sidebar({ isOpen }: SidebarProps) {
   };
 
   const sidebarClassName = `sidebar ${isOpen ? 'open' : ''}`;
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const access = typeof window !== 'undefined' ? localStorage.getItem('access') : null;
+        if (!access) return;
+        const profile = await apiProfileGet(access);
+        setFullName(profile?.full_name || '');
+      } catch {}
+    };
+    load();
+  }, []);
+
+  const initials = React.useMemo(() => {
+    const n = (fullName || '').trim();
+    if (!n) return 'U';
+    const parts = n.split(/\s+/).filter(Boolean);
+    const first = parts[0]?.[0] || '';
+    const last = parts[parts.length - 1]?.[0] || '';
+    return (first + last).toUpperCase() || 'U';
+  }, [fullName]);
 
   return (
     <aside className={sidebarClassName}>
@@ -71,8 +96,8 @@ export function Sidebar({ isOpen }: SidebarProps) {
 
       <div className="sidebar-profile">
         <div className="sidebar-profile-content">
-          <div className="sidebar-profile-avatar">JD</div>
-          <p className="sidebar-profile-name">John Doe</p>
+          <div className="sidebar-profile-avatar">{initials}</div>
+          <p className="sidebar-profile-name">{fullName || 'User'}</p>
         </div>
       </div>
     </aside>

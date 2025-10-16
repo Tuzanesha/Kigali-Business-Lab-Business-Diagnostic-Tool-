@@ -51,6 +51,18 @@ class EnterpriseViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
 
+    def create(self, request, *args, **kwargs):
+        # Enforce one enterprise per user but behave idempotently: if exists, return it
+        existing = Enterprise.objects.filter(owner=request.user).first()
+        if existing is not None:
+            return Response(EnterpriseSerializer(existing).data)
+        # accept partial payload for minimal creation
+        serializer = self.get_serializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
     @action(detail=True, methods=['post'])
     def recompute(self, request, pk=None):
         enterprise = self.get_object()
@@ -115,6 +127,20 @@ class EnterpriseViewSet(viewsets.ModelViewSet):
             'created': created,
             'updated': updated,
             'errors': errors,
+        })
+
+    @action(detail=True, methods=['post'], url_path='reset-responses')
+    def reset_responses(self, request, pk=None):
+        enterprise = self.get_object()
+        from .models import QuestionResponse
+        try:
+            deleted, _ = QuestionResponse.objects.filter(enterprise=enterprise).delete()
+        except Exception:
+            deleted = 0
+        summary = recompute_and_store_summary(enterprise)
+        return Response({
+            'deleted': deleted,
+            'overall_percentage': summary.overall_percentage,
         })
 
 
@@ -468,15 +494,19 @@ class EnterpriseProfileView(APIView):
 
     def put(self, request, pk=None):
         from .models import Enterprise
-        try:
-            if pk:
+        # Upsert behavior: create enterprise if missing
+        e = None
+        if pk:
+            try:
                 e = Enterprise.objects.get(pk=pk, owner=request.user)
-            else:
-                e = Enterprise.objects.filter(owner=request.user).order_by('id').first()
-                if not e:
-                    return Response({'detail': 'No enterprise yet'}, status=404)
-        except Enterprise.DoesNotExist:
-            return Response({'detail': 'Not found'}, status=404)
+            except Enterprise.DoesNotExist:
+                return Response({'detail': 'Not found'}, status=404)
+        else:
+            e = Enterprise.objects.filter(owner=request.user).order_by('id').first()
+            if not e:
+                # create minimal enterprise and then update
+                name = request.data.get('name') or 'My Enterprise'
+                e = Enterprise.objects.create(owner=request.user, name=name)
         # Update subset of fields
         for f in ['name','location','year_founded','legal_structure','description','full_time_employees_total','part_time_employees_total','revenue_this_year']:
             if f in request.data:
@@ -500,11 +530,9 @@ class PasswordResetRequestView(APIView):
         token = PasswordResetTokenGenerator().make_token(user)
         uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
 
-        # Build absolute URL to our confirm page
-        # Use request.get_host() to support different environments
-        scheme = 'https' if request.is_secure() else 'http'
-        base = f"{scheme}://{request.get_host()}"
-        confirm_url = f"{base}/api/web/password-reset/confirm/?uid={uidb64}&token={token}"
+        # Build a URL to the frontend reset page, honoring proxy/public base URL
+        base = compute_public_base_url(request)
+        confirm_url = f"{base}/reset-password?uid={uidb64}&token={token}"
 
         # Email body
         subject = 'Password reset instructions'
@@ -570,6 +598,51 @@ class DashboardView(APIView):
             "enterprises": enterprises_count,
             "latest_overall_percentage": latest_overall,
         })
+
+
+class MyAssessmentStatsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        # Number of enterprises that have at least one recorded response
+        enterprises = Enterprise.objects.filter(owner=request.user)
+        from .models import QuestionResponse, ActionItem
+        completed = 0
+        for e in enterprises:
+            if QuestionResponse.objects.filter(enterprise=e).exists():
+                completed += 1
+        # Action items summary
+        open_items = ActionItem.objects.filter(owner=request.user).exclude(status=ActionItem.STATUS_COMPLETED)
+        high_priority = open_items.filter(priority=ActionItem.PRIORITY_HIGH).count()
+        return Response({
+            'assessments_completed': completed,
+            'open_action_items': open_items.count(),
+            'high_priority_actions': high_priority,
+        })
+
+
+class MyAssessmentSessionsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from .models import AssessmentSession
+        enterprises = Enterprise.objects.filter(owner=request.user)
+        sessions = (
+            AssessmentSession.objects
+            .filter(enterprise__in=enterprises)
+            .select_related('enterprise')
+            .order_by('-created_at')
+        )
+        results = []
+        for s in sessions:
+            results.append({
+                'id': s.id,
+                'enterprise_id': s.enterprise_id,
+                'enterprise_name': s.enterprise.name,
+                'created_at': s.created_at,
+                'overall_percentage': s.overall_percentage,
+            })
+        return Response({'results': results})
 
 
 from django.utils import timezone

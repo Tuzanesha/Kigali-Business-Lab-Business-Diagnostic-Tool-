@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Edit, Trash2, PlusCircle } from 'lucide-react';
 import './settings.css';
 import { useRouter } from 'next/navigation';
-import { apiProfileGet, apiProfileUpdate, apiPasswordChange, apiAccountDelete, apiNotificationsGet, apiNotificationsUpdate } from '../../../lib/api';
+import { apiProfileGet, apiProfileUpdate, apiPasswordChange, apiAccountDelete, apiNotificationsGet, apiNotificationsUpdate, apiEnterpriseProfileGet, apiEnterpriseProfileUpdate, apiEnterpriseCreate } from '../../../lib/api';
 
 interface ButtonProps {
   children: React.ReactNode;
@@ -129,9 +129,57 @@ const AccountContent = () => {
 };
 
 const EnterpriseProfileContent = () => {
-    const [enterpriseData, setEnterpriseData] = useState({ name: 'KBL Solutions Inc.', location: 'New York, NY', contact_person: 'Jane Doe', phone_number: '123-456-7890', email: 'contact@kblsolutions.com', year_founded: 2020, legal_structure: '', owner_background: '', description: 'Providing innovative business solutions.', key_partners: '', full_time_employees_total: 25, full_time_employees_female: 15, part_time_employees_total: 5, part_time_employees_female: 3, revenue_this_year: 1500000.00, revenue_last_year: 1200000.00, units_sold_this_year: '5000', units_sold_last_year: '4000', num_suppliers: 10, num_customers: 200, total_funding: 50000.00, short_term_plans: '', medium_term_plans: '', long_term_plans: '', market_linkage_needs: '', finance_needs_amount: 10000.00, key_assistance_areas: '' });
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => { const { name, value, type } = e.target; const isNumberField = type === 'number'; const finalValue = isNumberField ? (value === '' ? '' : parseFloat(value)) : value; setEnterpriseData(prev => ({ ...prev, [name]: finalValue })); };
-    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); const savePromise = new Promise(resolve => setTimeout(resolve, 1500)); toast.promise(savePromise, { loading: 'Saving enterprise profile...', success: 'Profile saved successfully! now you can do an assessment for your enterprise', error: 'Failed to save profile.' }); };
+    const [enterpriseData, setEnterpriseData] = useState({ name: '', location: '', contact_person: '', phone_number: '', email: '', year_founded: '' as any, legal_structure: '', owner_background: '', description: '', key_partners: '', full_time_employees_total: '' as any, full_time_employees_female: '' as any, part_time_employees_total: '' as any, part_time_employees_female: '' as any, revenue_this_year: '' as any, revenue_last_year: '' as any, units_sold_this_year: '', units_sold_last_year: '', num_suppliers: '' as any, num_customers: '' as any, total_funding: '' as any, short_term_plans: '', medium_term_plans: '', long_term_plans: '', market_linkage_needs: '', finance_needs_amount: '' as any, key_assistance_areas: '' });
+    const [hasEnterprise, setHasEnterprise] = useState(false);
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => { const { name, value, type } = e.target; const isNumberField = type === 'number'; const finalValue: any = isNumberField ? (value === '' ? '' : Number(value)) : value; setEnterpriseData(prev => ({ ...prev, [name]: finalValue })); };
+    useEffect(() => {
+        const load = async () => {
+            const id = 'enterprise-load';
+            toast.dismiss(id);
+            toast.loading('Loading enterprise profile...', { id });
+            try {
+                const access = localStorage.getItem('access');
+                if (!access) { toast.dismiss(id); return; }
+                const p = await apiEnterpriseProfileGet(access);
+                setEnterpriseData(prev => ({ ...prev, ...p }));
+                setHasEnterprise(true);
+                toast.success('Enterprise loaded', { id, duration: 2000 });
+            } catch (e:any) {
+                // If 404, user has no enterprise yet; leave form empty for creation-by-PUT behavior
+                setHasEnterprise(false);
+                toast.dismiss(id);
+            }
+        };
+        load();
+    }, []);
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const id = 'enterprise-save';
+        toast.dismiss(id);
+        toast.loading('Saving enterprise profile...', { id });
+        try {
+            const access = localStorage.getItem('access')!;
+            // Filter out empty strings/nulls to avoid validation issues on numeric fields
+            const raw = { ...enterpriseData } as Record<string, any>;
+            const payload: Record<string, any> = {};
+            for (const [k, v] of Object.entries(raw)) {
+                if (v === '' || v === null || v === undefined) continue;
+                payload[k] = v;
+            }
+            let out: any;
+            if (hasEnterprise) {
+                out = await apiEnterpriseProfileUpdate(access, payload);
+            } else {
+                // Create a new enterprise (minimum required: name)
+                out = await apiEnterpriseCreate(access, { name: payload.name || 'My Enterprise', ...payload });
+                setHasEnterprise(true);
+            }
+            setEnterpriseData(prev => ({ ...prev, ...out }));
+            toast.success('Profile saved successfully! Now you can do an assessment for your enterprise', { id, duration: 2500 });
+        } catch (e:any) {
+            toast.error(e?.message || 'Failed to save profile.', { id, duration: 3000 });
+        }
+    };
     return (<div className="settings-card"><h2 className="settings-card-header">Enterprise Profile</h2><form className="settings-form" onSubmit={handleSubmit}><div className="form-grid"><h3 className="form-subheading grid-col-span-full">Core Information</h3><FormInput id="name" label="Enterprise Name" value={enterpriseData.name} onChange={handleChange} /><FormInput id="location" label="Location" value={enterpriseData.location} onChange={handleChange} /><FormInput id="contact_person" label="Contact Person" value={enterpriseData.contact_person} onChange={handleChange} /><FormInput id="phone_number" label="Phone Number" type="tel" value={enterpriseData.phone_number} onChange={handleChange} /><FormInput id="email" label="Email" type="email" value={enterpriseData.email} onChange={handleChange} /><FormInput id="year_founded" label="Year Founded" type="number" value={enterpriseData.year_founded} onChange={handleChange} /><FormInput id="legal_structure" label="Legal Structure" value={enterpriseData.legal_structure} onChange={handleChange} /><FormInput id="owner_background" label="Owner Background" value={enterpriseData.owner_background} onChange={handleChange} /><FormTextarea id="description" label="Brief Description" value={enterpriseData.description} onChange={handleChange} /><h3 className="form-subheading grid-col-span-full">Operations & Partners</h3><FormInput id="num_suppliers" label="Number of Suppliers" type="number" value={enterpriseData.num_suppliers} onChange={handleChange} /><FormInput id="num_customers" label="Number of Customers" type="number" value={enterpriseData.num_customers} onChange={handleChange} /><FormTextarea id="key_partners" label="Key Partners" value={enterpriseData.key_partners} onChange={handleChange} /><h3 className="form-subheading grid-col-span-full">Employee Information</h3><FormInput id="full_time_employees_total" label="Total Full-time Employees" type="number" value={enterpriseData.full_time_employees_total} onChange={handleChange} /><FormInput id="full_time_employees_female" label="Female Full-time Employees" type="number" value={enterpriseData.full_time_employees_female} onChange={handleChange} /><FormInput id="part_time_employees_total" label="Total Part-time Employees" type="number" value={enterpriseData.part_time_employees_total} onChange={handleChange} /><FormInput id="part_time_employees_female" label="Female Part-time Employees" type="number" value={enterpriseData.part_time_employees_female} onChange={handleChange} /><h3 className="form-subheading grid-col-span-full">Financial Performance</h3><FormInput id="revenue_this_year" label="Revenue This Year (USD)" type="number" value={enterpriseData.revenue_this_year} onChange={handleChange} /><FormInput id="revenue_last_year" label="Revenue Last Year (USD)" type="number" value={enterpriseData.revenue_last_year} onChange={handleChange} /><FormInput id="units_sold_this_year" label="Units Sold This Year" value={enterpriseData.units_sold_this_year} onChange={handleChange} /><FormInput id="units_sold_last_year" label="Units Sold Last Year" value={enterpriseData.units_sold_last_year} onChange={handleChange} /><h3 className="form-subheading grid-col-span-full">Funding & Needs</h3><FormInput id="total_funding" label="Total Funding to Date (USD)" type="number" value={enterpriseData.total_funding} onChange={handleChange} /><FormInput id="finance_needs_amount" label="Current Finance Needs (USD)" type="number" value={enterpriseData.finance_needs_amount} onChange={handleChange} /><FormTextarea id="market_linkage_needs" label="Market Linkage Needs" value={enterpriseData.market_linkage_needs} onChange={handleChange} /><FormTextarea id="key_assistance_areas" label="Key Areas Where Assistance is Needed" value={enterpriseData.key_assistance_areas} onChange={handleChange} /><h3 className="form-subheading grid-col-span-full">Strategic Plans</h3><FormTextarea id="short_term_plans" label="Short-term Plans" value={enterpriseData.short_term_plans} onChange={handleChange} /><FormTextarea id="medium_term_plans" label="Medium-term Plans" value={enterpriseData.medium_term_plans} onChange={handleChange} /><FormTextarea id="long_term_plans" label="Long-term Plans" value={enterpriseData.long_term_plans} onChange={handleChange} /><div className="form-actions grid-col-span-full"><Button type="submit" variant="primary">Save Enterprise Profile</Button></div></div></form></div>);
 };
 

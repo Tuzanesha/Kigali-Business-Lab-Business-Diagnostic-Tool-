@@ -6,12 +6,13 @@ import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { MailCheck } from 'lucide-react';
 import styles from './forgot-password.module.css';
+import { apiPasswordResetRequest } from '../../lib/api';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (!email) {
@@ -19,20 +20,15 @@ export default function ForgotPasswordPage() {
       return;
     }
 
-    const sendLinkPromise = new Promise<void>((resolve, reject) => {
-      setTimeout(() => {
-        resolve();
-      }, 1500);
-    });
+    const promise = (async () => {
+      await apiPasswordResetRequest(email);
+      setSubmitted(true);
+    })();
 
-    toast.promise(sendLinkPromise, {
+    toast.promise(promise, {
       loading: 'Sending reset link...',
       success: 'If an account exists, a reset link has been sent.',
       error: 'Could not send reset link.',
-    });
-
-    sendLinkPromise.then(() => {
-      setSubmitted(true);
     });
   };
 

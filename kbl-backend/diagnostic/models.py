@@ -39,7 +39,7 @@ class Question(TimeStampedModel):
 
 
 class Enterprise(TimeStampedModel):
-    owner = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='enterprises')
+    owner = models.OneToOneField(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='enterprise')
     name = models.CharField(max_length=255)
     location = models.CharField(max_length=255, blank=True)
     contact_person = models.CharField(max_length=255, blank=True)
@@ -96,6 +96,16 @@ class ScoreSummary(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"Summary for {self.enterprise.name}"
+
+
+class AssessmentSession(TimeStampedModel):
+    enterprise = models.ForeignKey(Enterprise, related_name='assessment_sessions', on_delete=models.CASCADE)
+    overall_percentage = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    section_scores = models.JSONField(default=dict)
+    priorities = models.JSONField(default=dict)
+
+    def __str__(self) -> str:
+        return f"Session {self.id} for {self.enterprise.name} at {self.created_at}"
 
 
 def evidence_attachment_upload_path(instance: 'Attachment', filename: str) -> str:

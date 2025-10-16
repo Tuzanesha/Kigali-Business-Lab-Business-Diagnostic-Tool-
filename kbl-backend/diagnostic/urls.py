@@ -23,6 +23,8 @@ from .views import (
     EnterpriseReportView,
     AssessmentReportPageView,
     LogoutView,
+    MyAssessmentStatsView,
+    MyAssessmentSessionsView,
     PasswordResetRequestView,
     PasswordResetConfirmView,
     PasswordResetRequestPageView,
@@ -56,6 +58,8 @@ urlpatterns = [
     path('auth/password-reset/request/', PasswordResetRequestView.as_view()),
     path('auth/password-reset/confirm/', PasswordResetConfirmView.as_view()),
     path('dashboard/', DashboardView.as_view()),
+    path('my/assessment-stats/', MyAssessmentStatsView.as_view()),
+    path('my/assessment-sessions/', MyAssessmentSessionsView.as_view()),
     # Profile & account
     path('account/profile/', ProfileView.as_view()),
     path('account/avatar/upload/', AvatarUploadView.as_view()),

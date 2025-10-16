@@ -45,7 +45,7 @@
 //       <header className={styles['page-header']}>
 //         <div>
 //           <h1 className={styles['page-title']}>DASHBOARD</h1>
-//           <p className={styles['welcome-message']}>Welcome back, John Doe!</p>
+//           <p className={styles['welcome-message']}>Welcome back{fullName ? `, ${fullName}` : ''}!</p>
 //         </div>
 //         <Link href="/assessments/new" className={styles.newAssessmentButton}>
 //           <PlusCircle height={20} width={20} />
@@ -107,19 +107,14 @@
 
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { ArrowUp, PlusCircle, TrendingUp, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import styles from './dashboard.module.css';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { apiDashboard } from '../../../lib/api';
-
-export default function DashboardPage() {
-  const router = useRouter();
-  const [overallPct, setOverallPct] = useState<number>(0);
-  const [enterprises, setEnterprises] = useState<number>(0);
+import { apiDashboard, apiEnterpriseProfileGet, apiMySummaries, apiProfileGet, apiMyAssessmentStats } from '../../../lib/api';
 
 const NewUserWelcome = () => {
   return (
@@ -148,19 +143,19 @@ const ExistingUserDashboard = () => {
   const router = useRouter();
   const [overallPct, setOverallPct] = useState<number>(0);
   const [enterprises, setEnterprises] = useState<number>(0);
+  const [chartData, setChartData] = useState<Array<{ name: string; latest: number; previous: number }>>([]);
+  const [fullName, setFullName] = useState<string>('');
+  const [assessmentsCompleted, setAssessmentsCompleted] = useState<number>(0);
+  const [openActions, setOpenActions] = useState<number>(0);
+  const [highPriority, setHighPriority] = useState<number>(0);
 
-  const chartData = [
-    { name: 'Leadership', latest: 75, previous: 68 },
-    { name: 'Organisation', latest: 62, previous: 58 },
-    { name: 'Sales', latest: 60, previous: 55 },
-    { name: 'Financials', latest: 40, previous: 38 },
-    { name: 'Marketing', latest: 65, previous: 50 },
-    { name: 'Operations', latest: 70, previous: 72 },
-  ];
+  // previous values are placeholders until we have historical data
 
   useEffect(() => {
     const load = async () => {
-      const id = toast.loading('Loading dashboard...');
+      const id = 'dashboard-load';
+      toast.dismiss(id);
+      toast.loading('Loading dashboard...', { id });
       try {
         const access = localStorage.getItem('access');
         if (!access) {
@@ -168,12 +163,31 @@ const ExistingUserDashboard = () => {
           router.push('/login');
           return;
         }
+        // Load profile for greeting
+        try {
+          const profile = await apiProfileGet(access);
+          setFullName(profile?.full_name || '');
+        } catch {}
         const data = await apiDashboard(access);
-        setOverallPct(Number(data?.latest_overall_percentage || 0));
         setEnterprises(Number(data?.enterprises || 0));
-        toast.success('Dashboard loaded', { id });
+        // Load KPI stats
+        try {
+          const stats = await apiMyAssessmentStats(access);
+          setAssessmentsCompleted(Number(stats?.assessments_completed || 0));
+          setOpenActions(Number(stats?.open_action_items || 0));
+          setHighPriority(Number(stats?.high_priority_actions || 0));
+        } catch {}
+        // Use summaries to populate overall and section chart
+        const summaries = await apiMySummaries(access);
+        const first = (Array.isArray(summaries?.results) ? summaries.results : [])[0] || {};
+        const overall = Number(first?.overall_percentage || data?.latest_overall_percentage || 0);
+        setOverallPct(overall);
+        const sections = first?.section_scores || {};
+        const rows = Object.entries(sections).map(([name, v]: any) => ({ name, latest: Number(v?.percentage || 0), previous: 0 }));
+        setChartData(rows);
+        toast.success('Dashboard loaded', { id, duration: 1500 });
       } catch (e:any) {
-        toast.error(e?.message || 'Could not load dashboard.', { id });
+        toast.error(e?.message || 'Could not load dashboard.', { id, duration: 2500 });
         if ((e?.message||'').toLowerCase().includes('unauthorized') || (e?.message||'').includes('403')) {
           router.push('/login');
         }
@@ -187,7 +201,7 @@ const ExistingUserDashboard = () => {
       <header className={styles['page-header']}>
         <div>
           <h1 className={styles['page-title']}>DASHBOARD</h1>
-          <p className={styles['welcome-message']}>Welcome back, John Doe!</p>
+          <p className={styles['welcome-message']}>Welcome back{fullName ? `, ${fullName}` : ''}!</p>
         </div>
         <Link href="/assessments/new" className={styles.newAssessmentButton}>
           <PlusCircle height={20} width={20} />
@@ -206,17 +220,15 @@ const ExistingUserDashboard = () => {
         </div>
         <div className={styles['kpi-card']}>
           <p className={styles['kpi-title']}>Open Action Items</p>
-          <p className={styles['kpi-value']}>8</p>
-          <p className={styles['kpi-subtext']}>3 items are high priority</p>
+          <p className={styles['kpi-value']}>{openActions}</p>
+          <p className={styles['kpi-subtext']}>{highPriority} items are high priority</p>
         </div>
         <div className={styles['kpi-card']}>
           <p className={styles['kpi-title']}>Assessments Completed</p>
-          <p className={styles['kpi-value']}>14</p>
-          <p className={styles['kpi-subtext']}>In the last 6 months</p>
+          <p className={styles['kpi-value']}>{assessmentsCompleted}</p>
+          <p className={styles['kpi-subtext']}>All-time</p>
         </div>
-        <div className={styles['kpi-card']}><p className={styles['kpi-title']}>Overall Health Score</p><p className={styles['kpi-value']}>72%</p><p className={styles['kpi-subtext']}><ArrowUp color="green" height={16} width={16} />+5% vs last assessment</p></div>
-        <div className={styles['kpi-card']}><p className={styles['kpi-title']}>Open Action Items</p><p className={styles['kpi-value']}>8</p><p className={styles['kpi-subtext']}>3 items are high priority</p></div>
-        <div className={styles['kpi-card']}><p className={styles['kpi-title']}>Assessments Completed</p><p className={styles['kpi-value']}>14</p><p className={styles['kpi-subtext']}>In the last 6 months</p></div>
+        
       </div>
 
       <div className={styles['main-chart-card']}>
@@ -235,21 +247,26 @@ export default function DashboardPageController() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const checkUserProfile = () => {
-      const loadingPromise = new Promise<void>(resolve => {
-        setTimeout(() => {
-          const userHasProfile = false; 
-          setHasEnterpriseProfile(userHasProfile);
+    const checkUserProfile = async () => {
+      const id = toast.loading('Loading dashboard...');
+      try {
+        const access = localStorage.getItem('access');
+        if (!access) {
+          toast.dismiss(id);
           setIsLoading(false);
-          resolve();
-        }, 1500);
-      });
-      
-      toast.promise(loadingPromise, {
-        loading: 'Loading dashboard...',
-        success: 'Welcome back, John Doe!',
-        error: 'Could not load dashboard data.',
-      });
+          return;
+        }
+        // If enterprise profile exists, backend returns 200; otherwise 404
+        await apiEnterpriseProfileGet(access);
+        setHasEnterpriseProfile(true);
+        toast.success('Welcome back!', { id });
+      } catch (e:any) {
+        // 404 means no enterprise yet
+        setHasEnterpriseProfile(false);
+        toast.dismiss(id);
+      } finally {
+        setIsLoading(false);
+      }
     };
     checkUserProfile();
   }, []);

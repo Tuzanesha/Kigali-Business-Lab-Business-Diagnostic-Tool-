@@ -24,37 +24,37 @@ class EnterpriseSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'owner', 'created_at', 'updated_at']
         extra_kwargs = {
             'name': {'required': True, 'allow_blank': False},
-            'location': {'required': True, 'allow_blank': False},
-            'contact_person': {'required': True, 'allow_blank': False},
-            'phone_number': {'required': True, 'allow_blank': False},
-            'email': {'required': True, 'allow_blank': False},
-            'year_founded': {'required': True, 'allow_null': False},
-            'legal_structure': {'required': True, 'allow_blank': False},
-            'owner_background': {'required': True, 'allow_blank': False},
-            'description': {'required': True, 'allow_blank': False},
-            'key_partners': {'required': True, 'allow_blank': False},
-            'full_time_employees_total': {'required': True},
-            'full_time_employees_female': {'required': True},
-            'part_time_employees_total': {'required': True},
-            'part_time_employees_female': {'required': True},
-            'revenue_this_year': {'required': True, 'allow_null': False},
-            'revenue_last_year': {'required': True, 'allow_null': False},
-            'units_sold_this_year': {'required': True, 'allow_blank': False},
-            'units_sold_last_year': {'required': True, 'allow_blank': False},
-            'num_suppliers': {'required': True},
-            'num_customers': {'required': True},
-            'total_funding': {'required': True, 'allow_null': False},
-            'short_term_plans': {'required': True, 'allow_blank': False},
-            'medium_term_plans': {'required': True, 'allow_blank': False},
-            'long_term_plans': {'required': True, 'allow_blank': False},
-            'market_linkage_needs': {'required': True, 'allow_blank': False},
-            'finance_needs_amount': {'required': True, 'allow_null': False},
-            'key_assistance_areas': {'required': True, 'allow_blank': False},
-            'status': {'required': True, 'allow_blank': False},
+            'location': {'required': False, 'allow_blank': True},
+            'contact_person': {'required': False, 'allow_blank': True},
+            'phone_number': {'required': False, 'allow_blank': True},
+            'email': {'required': False, 'allow_blank': True},
+            'year_founded': {'required': False, 'allow_null': True},
+            'legal_structure': {'required': False, 'allow_blank': True},
+            'owner_background': {'required': False, 'allow_blank': True},
+            'description': {'required': False, 'allow_blank': True},
+            'key_partners': {'required': False, 'allow_blank': True},
+            'full_time_employees_total': {'required': False},
+            'full_time_employees_female': {'required': False},
+            'part_time_employees_total': {'required': False},
+            'part_time_employees_female': {'required': False},
+            'revenue_this_year': {'required': False, 'allow_null': True},
+            'revenue_last_year': {'required': False, 'allow_null': True},
+            'units_sold_this_year': {'required': False, 'allow_blank': True},
+            'units_sold_last_year': {'required': False, 'allow_blank': True},
+            'num_suppliers': {'required': False},
+            'num_customers': {'required': False},
+            'total_funding': {'required': False, 'allow_null': True},
+            'short_term_plans': {'required': False, 'allow_blank': True},
+            'medium_term_plans': {'required': False, 'allow_blank': True},
+            'long_term_plans': {'required': False, 'allow_blank': True},
+            'market_linkage_needs': {'required': False, 'allow_blank': True},
+            'finance_needs_amount': {'required': False, 'allow_null': True},
+            'key_assistance_areas': {'required': False, 'allow_blank': True},
+            'status': {'required': False, 'allow_blank': True},
         }
 
     def validate(self, attrs):
-        # numeric non-negative checks
+        # Conditional, non-strict validation: only check fields if provided
         numeric_fields = [
             'full_time_employees_total', 'full_time_employees_female',
             'part_time_employees_total', 'part_time_employees_female',
@@ -62,18 +62,23 @@ class EnterpriseSerializer(serializers.ModelSerializer):
         ]
         for f in numeric_fields:
             v = attrs.get(f)
-            if v is None or v < 0:
+            if v is not None and v < 0:
                 raise serializers.ValidationError({f: 'Must be a non-negative integer'})
 
         decimal_fields = ['revenue_this_year', 'revenue_last_year', 'total_funding', 'finance_needs_amount']
         for f in decimal_fields:
             v = attrs.get(f)
-            if v is None or v < 0:
+            if v is not None and v < 0:
                 raise serializers.ValidationError({f: 'Must be a non-negative number'})
 
         year = attrs.get('year_founded')
-        if not (1800 <= int(year) <= 2100):
-            raise serializers.ValidationError({'year_founded': 'Enter a valid year'})
+        if year is not None:
+            try:
+                y = int(year)
+            except Exception:
+                raise serializers.ValidationError({'year_founded': 'Enter a valid year'})
+            if not (1800 <= y <= 2100):
+                raise serializers.ValidationError({'year_founded': 'Enter a valid year'})
         return attrs
 
 

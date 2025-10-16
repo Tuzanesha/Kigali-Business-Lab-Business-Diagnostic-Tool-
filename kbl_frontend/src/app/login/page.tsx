@@ -33,13 +33,15 @@ export default function LoginPage() {
       return;
     }
 
-    const id = toast.loading('Logging in...');
+    const id = 'login-toast';
+    toast.dismiss(id);
+    toast.loading('Logging in...', { id });
     try {
       const { access, refresh } = await apiLogin(email, password);
       localStorage.setItem('access', access);
       localStorage.setItem('refresh', refresh);
       const status = await apiAuthStatus(access);
-      toast.success('Login successful! Redirecting...',{id});
+      toast.success('Login successful! Redirecting...', { id, duration: 2000 });
       if (status?.verified) {
         router.push('/dashboard');
       } else {
@@ -53,7 +55,7 @@ export default function LoginPage() {
         router.push('/verify');
         return;
       }
-      toast.error(err?.message || 'Invalid email or password.', {id});
+      toast.error(err?.message || 'Invalid email or password.', { id, duration: 3000 });
     }
   };
 

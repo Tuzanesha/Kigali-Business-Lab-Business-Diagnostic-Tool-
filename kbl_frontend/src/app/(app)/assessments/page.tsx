@@ -6,9 +6,9 @@ import toast from 'react-hot-toast';
 import styles from './assessments.module.css';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { apiMySummaries } from '../../../lib/api';
+import { apiMyAssessmentSessions } from '../../../lib/api';
 
-type AssessmentItem = { id: number; date: string; score: string; status: 'completed'|'in-progress' };
+type AssessmentItem = { id: number; enterpriseId: number; enterprise: string; date: string; score: string; status: 'completed'|'in-progress' };
 
 export default function AssessmentsPage() {
   const router = useRouter();
@@ -20,12 +20,14 @@ export default function AssessmentsPage() {
       try {
         const access = localStorage.getItem('access');
         if (!access) { toast.dismiss(id); router.push('/login'); return; }
-        const data = await apiMySummaries(access);
-        const items: AssessmentItem[] = (data?.results || []).map((r: any) => ({
-          id: r.id,
-          date: r.updated_at ? new Date(r.updated_at).toLocaleDateString() : '—',
-          score: typeof r.overall_percentage === 'number' ? `${Math.round(r.overall_percentage)}%` : 'N/A',
-          status: r.has_responses ? 'completed' : 'in-progress',
+        const data = await apiMyAssessmentSessions(access);
+        const items: AssessmentItem[] = (data?.results || []).map((s: any) => ({
+          id: Number(s.id),
+          enterpriseId: Number(s.enterprise_id),
+          enterprise: String(s.enterprise_name || ''),
+          date: s.created_at ? new Date(s.created_at).toLocaleString() : '—',
+          score: typeof s.overall_percentage === 'number' ? `${Math.round(s.overall_percentage)}%` : 'N/A',
+          status: (typeof s.overall_percentage === 'number') ? 'completed' : 'in-progress',
         }));
         setAssessments(items);
         toast.success('Assessments loaded', { id });
@@ -69,6 +71,7 @@ export default function AssessmentsPage() {
             <thead>
               <tr>
                 <th>Assessment Date</th>
+                <th>Enterprise</th>
                 <th>Status</th>
                 <th>Overall Score</th>
                 <th>Actions</th>
@@ -78,6 +81,7 @@ export default function AssessmentsPage() {
               {assessments.map((assessment) => (
                 <tr key={assessment.id}>
                   <td>{assessment.date}</td>
+                  <td>{assessment.enterprise}</td>
                   <td>
                     <span className={`${styles.statusBadge} ${assessment.status === 'completed' ? styles.statusCompleted : styles.statusInProgress}`}>
                       {assessment.status}
@@ -85,7 +89,7 @@ export default function AssessmentsPage() {
                   </td>
                   <td>{assessment.score}</td>
                   <td className={styles.actionsCell}>
-                    <Link href={`/assessments/${assessment.id}`} className={styles.actionButton} aria-label="View">
+                    <Link href={`/assessments/${assessment.enterpriseId}`} className={styles.actionButton} aria-label="View">
                       <Eye height={18} width={18} />
                     </Link>
                     <button onClick={() => handleDelete(assessment.id)} className={styles.actionButton} aria-label="Delete">
@@ -109,7 +113,7 @@ export default function AssessmentsPage() {
               <div className={styles.mobileCardBody}>
                 <p className={styles.mobileCardScore}>{assessment.score}</p>
                 <div className={styles.actionsCell}>
-                  <Link href={`/assessments/${assessment.id}`} className={styles.actionButton} aria-label="View">
+                  <Link href={`/assessments/${assessment.enterpriseId}`} className={styles.actionButton} aria-label="View">
                     <Eye height={20} width={20} />
                   </Link>
                   <button onClick={() => handleDelete(assessment.id)} className={styles.actionButton} aria-label="Delete">

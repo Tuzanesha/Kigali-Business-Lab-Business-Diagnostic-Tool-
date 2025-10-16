@@ -6,11 +6,15 @@ import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { Eye, EyeOff } from 'lucide-react';
 import styles from './reset-password.module.css';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { apiPasswordResetConfirm } from '../../lib/api';
 
 export default function ResetPasswordPage() {
   const [formData, setFormData] = useState({ newPassword: '', confirmPassword: '' });
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const params = useSearchParams();
+  const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -28,28 +32,21 @@ export default function ResetPasswordPage() {
       toast.error("Password must be at least 8 characters long.");
       return;
     }
-
-
-    const updatePasswordPromise = new Promise((resolve, reject) => {
-      setTimeout(() => {
-      
-        if (true) {
-          resolve('Success!');
-        } else {
-          reject('API Error');
-        }
-      }, 1500);
+    const uid = params.get('uid') || '';
+    const token = params.get('token') || '';
+    if (!uid || !token) {
+      toast.error('Invalid or missing reset link.');
+      return;
+    }
+    const promise = (async () => {
+      await apiPasswordResetConfirm(uid, token, formData.newPassword);
+      setTimeout(() => router.push('/login'), 500);
+    })();
+    toast.promise(promise, {
+      loading: 'Updating password...',
+      success: 'Password has been updated!',
+      error: 'Could not update password.',
     });
-
-
-    toast.promise(
-      updatePasswordPromise,
-      {
-        loading: 'Updating password...',         
-        success: 'Password has been updated!', 
-        error: 'Could not update password.',   
-      }
-    );
   };
 
   return (

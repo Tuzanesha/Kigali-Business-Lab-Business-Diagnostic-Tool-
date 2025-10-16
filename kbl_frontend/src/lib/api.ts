@@ -218,6 +218,34 @@ export async function apiRegister(fullName: string, email: string, password: str
   return res.json();
 }
 
+export async function apiPasswordResetRequest(email: string) {
+  const res = await fetch('/api/auth/password-reset/request/', {
+    method: 'POST',
+    headers: defaultHeaders,
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) {
+    let detail = 'Failed to request password reset';
+    try { const j = await res.json(); detail = j?.detail || JSON.stringify(j); } catch {}
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
+export async function apiPasswordResetConfirm(uid: string, token: string, new_password: string) {
+  const res = await fetch('/api/auth/password-reset/confirm/', {
+    method: 'POST',
+    headers: defaultHeaders,
+    body: JSON.stringify({ uid, token, new_password }),
+  });
+  if (!res.ok) {
+    let detail = 'Failed to reset password';
+    try { const j = await res.json(); detail = j?.detail || JSON.stringify(j); } catch {}
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
 export async function apiDashboard(access: string) {
   const res = await fetch('/api/dashboard/', {
     headers: { ...defaultHeaders, Authorization: `Bearer ${access}` },
@@ -228,6 +256,156 @@ export async function apiDashboard(access: string) {
       const j = await res.json();
       detail = j?.detail || JSON.stringify(j);
     } catch {}
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
+// Catalog: Categories & Questions
+export async function apiCategories(access: string) {
+  const res = await fetch('/api/categories/', {
+    headers: { ...defaultHeaders, Authorization: `Bearer ${access}` },
+  });
+  if (!res.ok) {
+    let detail = 'Failed to load categories';
+    try { const j = await res.json(); detail = j?.detail || JSON.stringify(j); } catch {}
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
+export async function apiQuestions(access: string, params?: { category?: string }) {
+  const qs = params?.category ? `?category=${encodeURIComponent(params.category)}` : '';
+  const res = await fetch(`/api/questions/${qs}`, {
+    headers: { ...defaultHeaders, Authorization: `Bearer ${access}` },
+  });
+  if (!res.ok) {
+    let detail = 'Failed to load questions';
+    try { const j = await res.json(); detail = j?.detail || JSON.stringify(j); } catch {}
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
+// Enterprises
+export async function apiEnterprisesList(access: string) {
+  const res = await fetch('/api/enterprises/', {
+    headers: { ...defaultHeaders, Authorization: `Bearer ${access}` },
+  });
+  if (!res.ok) {
+    let detail = 'Failed to load enterprises';
+    try { const j = await res.json(); detail = j?.detail || JSON.stringify(j); } catch {}
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
+export async function apiEnterpriseCreate(access: string, payload: any) {
+  const res = await fetch('/api/enterprises/', {
+    method: 'POST',
+    headers: { ...defaultHeaders, Authorization: `Bearer ${access}` },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    let detail = 'Failed to create enterprise';
+    try { const j = await res.json(); detail = j?.detail || JSON.stringify(j); } catch {}
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
+// Enterprise profile (optional pk)
+export async function apiEnterpriseProfileGet(access: string, id?: number) {
+  const url = id ? `/api/enterprise/${id}/profile/` : '/api/enterprise/profile/';
+  const res = await fetch(url, {
+    headers: { ...defaultHeaders, Authorization: `Bearer ${access}` },
+  });
+  if (!res.ok) {
+    let detail = 'Failed to load enterprise profile';
+    try { const j = await res.json(); detail = j?.detail || JSON.stringify(j); } catch {}
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
+export async function apiEnterpriseProfileUpdate(access: string, payload: any, id?: number) {
+  const url = id ? `/api/enterprise/${id}/profile/` : '/api/enterprise/profile/';
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { ...defaultHeaders, Authorization: `Bearer ${access}` },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    let detail = 'Failed to update enterprise profile';
+    try { const j = await res.json(); detail = j?.detail || JSON.stringify(j); } catch {}
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
+// Assessment responses
+export async function apiEnterpriseBulkAnswers(access: string, enterpriseId: number, answers: Array<{ question_id?: number; question_number?: string|number; score: number; evidence?: string; comments?: string; }>) {
+  const res = await fetch(`/api/enterprises/${enterpriseId}/bulk-answers/`, {
+    method: 'POST',
+    headers: { ...defaultHeaders, Authorization: `Bearer ${access}` },
+    body: JSON.stringify(answers),
+  });
+  if (!res.ok) {
+    let detail = 'Failed to submit answers';
+    try { const j = await res.json(); detail = j?.detail || JSON.stringify(j); } catch {}
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
+export async function apiEnterpriseRecompute(access: string, enterpriseId: number) {
+  const res = await fetch(`/api/enterprises/${enterpriseId}/recompute/`, {
+    method: 'POST',
+    headers: { ...defaultHeaders, Authorization: `Bearer ${access}` },
+  });
+  if (!res.ok) {
+    let detail = 'Failed to recompute summary';
+    try { const j = await res.json(); detail = j?.detail || JSON.stringify(j); } catch {}
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
+// New: Reset all responses for an enterprise (start a fresh assessment)
+export async function apiEnterpriseResetResponses(access: string, enterpriseId: number) {
+  const res = await fetch(`/api/enterprises/${enterpriseId}/reset-responses/`, {
+    method: 'POST',
+    headers: { ...defaultHeaders, Authorization: `Bearer ${access}` },
+  });
+  if (!res.ok) {
+    let detail = 'Failed to reset responses';
+    try { const j = await res.json(); detail = j?.detail || JSON.stringify(j); } catch {}
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
+// New: Dashboard KPI stats
+export async function apiMyAssessmentStats(access: string) {
+  const res = await fetch('/api/my/assessment-stats/', {
+    headers: { ...defaultHeaders, Authorization: `Bearer ${access}` },
+  });
+  if (!res.ok) {
+    let detail = 'Failed to load stats';
+    try { const j = await res.json(); detail = j?.detail || JSON.stringify(j); } catch {}
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
+// New: List assessment sessions (historical reports)
+export async function apiMyAssessmentSessions(access: string) {
+  const res = await fetch('/api/my/assessment-sessions/', {
+    headers: { ...defaultHeaders, Authorization: `Bearer ${access}` },
+  });
+  if (!res.ok) {
+    let detail = 'Failed to load assessment sessions';
+    try { const j = await res.json(); detail = j?.detail || JSON.stringify(j); } catch {}
     throw new Error(detail);
   }
   return res.json();

@@ -15,7 +15,7 @@ from django.template.loader import render_to_string
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 
-from .models import Enterprise, QuestionResponse, Question, Category, ScoreSummary, EmailOTP
+from .models import Enterprise, QuestionResponse, Question, Category, ScoreSummary, EmailOTP, AssessmentSession
 
 
 IMMEDIATE_PRIORITY_SET = {1, 2}
@@ -109,6 +109,16 @@ def recompute_and_store_summary(enterprise: Enterprise) -> ScoreSummary:
             'priorities': data['priorities'],
         }
     )
+    # Record a historical session as well
+    try:
+        AssessmentSession.objects.create(
+            enterprise=enterprise,
+            overall_percentage=data['overall_percentage'],
+            section_scores=data['section_scores'],
+            priorities=data['priorities'],
+        )
+    except Exception:
+        pass
     return summary
 
 
