@@ -1,24 +1,20 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import './add-task.css';
-import { apiActionCreate } from '../../../../lib/api';
+import { apiActionCreate, apiTeamList, apiEnterpriseProfileGet } from '../../../../lib/api';
 
-const users = [
-  { id: 'JD', name: 'John Doe' },
-  { id: 'SM', name: 'Sarah Miller' },
-  { id: 'RJ', name: 'Robert Johnson' },
-  { id: 'LK', name: 'Laura King' },
-  { id: 'HR', name: 'Henry Roberts' },
-];
+type TeamMember = { id: number; email: string; role: 'ADMIN'|'MANAGER'|'MEMBER'; status: string; enterprise: number };
 
 const priorities = ['HIGH', 'MEDIUM', 'LOW'];
 
 export default function AddNewTaskPage() {
   const router = useRouter();
+  const [team, setTeam] = useState<TeamMember[]>([]);
+  const [enterpriseId, setEnterpriseId] = useState<number|null>(null);
   const [formData, setFormData] = useState({
     title: '',
     source: '',
@@ -26,6 +22,27 @@ export default function AddNewTaskPage() {
     dueDate: '',
     assignedTo: '',
   });
+
+  useEffect(() => {
+    const load = async () => {
+      const id = toast.loading('Loading team...');
+      try {
+        const access = localStorage.getItem('access');
+        if (!access) { toast.dismiss(id); return; }
+        const ep = await apiEnterpriseProfileGet(access);
+        setEnterpriseId(ep?.id || null);
+        const list = await apiTeamList(access);
+        const items: TeamMember[] = Array.isArray(list?.results) ? list.results : (Array.isArray(list) ? list : []);
+        // Filter to current enterprise if available
+        const filtered = ep?.id ? items.filter(m => Number(m.enterprise) === Number(ep.id)) : items;
+        setTeam(filtered);
+        toast.success('Team loaded', { id, duration: 1200 });
+      } catch (e:any) {
+        toast.error(e?.message || 'Failed to load team', { id, duration: 1500 });
+      }
+    };
+    load();
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -51,6 +68,7 @@ export default function AddNewTaskPage() {
         due_date: formData.dueDate,
         assigned_to: formData.assignedTo,
         status: 'todo',
+        ...(enterpriseId ? { enterprise: enterpriseId } : {}),
       });
       toast.success('Task created successfully!', { id });
       router.push('/action-plan');
@@ -118,8 +136,8 @@ export default function AddNewTaskPage() {
               required
             >
               <option value="" disabled>Select a team member</option>
-              {users.map(user => (
-                <option key={user.id} value={user.id}>{user.name}</option>
+              {team.map(m => (
+                <option key={m.id} value={m.email}>{m.email}</option>
               ))}
             </select>
           </div>

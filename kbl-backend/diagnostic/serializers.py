@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Category, Question, Enterprise, QuestionResponse, ScoreSummary, Attachment, EmailOTP, ActionItem
+from .models import Category, Question, Enterprise, QuestionResponse, ScoreSummary, Attachment, EmailOTP, ActionItem, TeamMember
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -80,6 +80,19 @@ class EnterpriseSerializer(serializers.ModelSerializer):
             if not (1800 <= y <= 2100):
                 raise serializers.ValidationError({'year_founded': 'Enter a valid year'})
         return attrs
+
+
+class TeamMemberSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TeamMember
+        fields = '__all__'
+        read_only_fields = ['id', 'created_at', 'updated_at', 'invitation_token', 'accepted_at', 'user', 'invited_by']
+        extra_kwargs = {
+            'email': { 'required': True },
+            'role': { 'required': False },
+            'status': { 'required': False },
+            'enterprise': { 'required': True },
+        }
 
 
 class QuestionResponseSerializer(serializers.ModelSerializer):

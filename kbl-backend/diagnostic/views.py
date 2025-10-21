@@ -9,7 +9,7 @@ from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 
-from .models import Category, Question, Enterprise, QuestionResponse, ScoreSummary, Attachment, EmailOTP, PhoneOTP, ActionItem
+from .models import Category, Question, Enterprise, QuestionResponse, ScoreSummary, Attachment, EmailOTP, PhoneOTP, ActionItem, TeamMember
 from .serializers import (
     CategorySerializer,
     QuestionSerializer,
@@ -19,6 +19,7 @@ from .serializers import (
     AttachmentSerializer,
     EmailOTPSerializer,
     ActionItemSerializer,
+    TeamMemberSerializer,
 )
 from .services import recompute_and_store_summary, compute_public_base_url, send_verification_email
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
@@ -27,6 +28,7 @@ from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all().order_by('name')
     serializer_class = CategorySerializer
+    pagination_class = None
 
 
 class QuestionViewSet(viewsets.ModelViewSet):
@@ -235,6 +237,15 @@ class ActionItemViewSet(viewsets.ModelViewSet):
         return qs.order_by('status', 'order', 'id')
 
     def perform_create(self, serializer):
+        # Require the user to have an enterprise; default to it if not passed
+        enterprise = serializer.validated_data.get('enterprise')
+        if not enterprise:
+            enterprise = Enterprise.objects.filter(owner=self.request.user).first()
+            if not enterprise:
+                raise serializers.ValidationError({'enterprise': 'Please create your enterprise profile first.'})
+        elif not Enterprise.objects.filter(id=enterprise.id, owner=self.request.user).exists():
+            raise serializers.ValidationError({'enterprise': 'Not permitted'})
+
         # Place at end of the column by default
         status_val = serializer.validated_data.get('status') or ActionItem.STATUS_TODO
         max_order = (
@@ -243,7 +254,7 @@ class ActionItemViewSet(viewsets.ModelViewSet):
             .aggregate(models.Max('order'))
             .get('order__max') or 0
         )
-        serializer.save(owner=self.request.user, order=max_order + 1)
+        serializer.save(owner=self.request.user, enterprise=enterprise, order=max_order + 1)
 
     @action(detail=False, methods=['get'])
     def board(self, request):
@@ -297,6 +308,40 @@ class ActionItemViewSet(viewsets.ModelViewSet):
                 it.order = new_index
                 it.save(update_fields=['status', 'order', 'updated_at'])
         return Response({'detail': 'Updated'})
+
+
+class TeamMemberViewSet(viewsets.ModelViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = TeamMemberSerializer
+
+    def get_queryset(self):
+        enterprises = Enterprise.objects.filter(owner=self.request.user)
+        return TeamMember.objects.filter(enterprise__in=enterprises).select_related('enterprise').order_by('created_at')
+
+    def perform_create(self, serializer):
+        import secrets
+        # Ensure enterprise belongs to user
+        enterprise = serializer.validated_data.get('enterprise')
+        if not Enterprise.objects.filter(id=enterprise.id, owner=self.request.user).exists():
+            raise serializers.ValidationError({'enterprise': 'Not permitted'})
+        token = secrets.token_hex(16)
+        serializer.save(invited_by=self.request.user, invitation_token=token)
+
+    @action(detail=False, methods=['post'], url_path='accept')
+    def accept(self, request):
+        token = (request.data.get('token') or '').strip()
+        if not token:
+            return Response({'detail': 'token is required'}, status=400)
+        try:
+            member = TeamMember.objects.get(invitation_token=token, status=TeamMember.STATUS_INVITED)
+        except TeamMember.DoesNotExist:
+            return Response({'detail': 'Invalid or expired token'}, status=400)
+        member.status = TeamMember.STATUS_ACTIVE
+        member.user = request.user
+        from django.utils import timezone
+        member.accepted_at = timezone.now()
+        member.save(update_fields=['status', 'user', 'accepted_at', 'updated_at'])
+        return Response(TeamMemberSerializer(member).data)
 
 
 from rest_framework.views import APIView
@@ -604,13 +649,10 @@ class MyAssessmentStatsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        # Number of enterprises that have at least one recorded response
+        # Count completed assessments as the number of AssessmentSession rows across user's enterprises
         enterprises = Enterprise.objects.filter(owner=request.user)
-        from .models import QuestionResponse, ActionItem
-        completed = 0
-        for e in enterprises:
-            if QuestionResponse.objects.filter(enterprise=e).exists():
-                completed += 1
+        from .models import ActionItem, AssessmentSession
+        completed = AssessmentSession.objects.filter(enterprise__in=enterprises).count()
         # Action items summary
         open_items = ActionItem.objects.filter(owner=request.user).exclude(status=ActionItem.STATUS_COMPLETED)
         high_priority = open_items.filter(priority=ActionItem.PRIORITY_HIGH).count()
@@ -641,6 +683,7 @@ class MyAssessmentSessionsView(APIView):
                 'enterprise_name': s.enterprise.name,
                 'created_at': s.created_at,
                 'overall_percentage': s.overall_percentage,
+                'section_scores': getattr(s, 'section_scores', {}),
             })
         return Response({'results': results})
 

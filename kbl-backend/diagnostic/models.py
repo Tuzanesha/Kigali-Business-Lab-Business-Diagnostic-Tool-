@@ -178,7 +178,7 @@ class ActionItem(TimeStampedModel):
     source = models.CharField(max_length=255, blank=True)
     priority = models.CharField(max_length=6, choices=PRIORITY_CHOICES, default=PRIORITY_MEDIUM)
     due_date = models.DateField(null=True, blank=True)
-    assigned_to = models.CharField(max_length=16, blank=True, help_text='Assignee initials or identifier')
+    assigned_to = models.CharField(max_length=128, blank=True, help_text='Assignee initials or identifier')
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_TODO)
     order = models.IntegerField(default=0, help_text='Position within the status column')
 
@@ -187,3 +187,38 @@ class ActionItem(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.title} ({self.status})"
+
+
+class TeamMember(TimeStampedModel):
+    ROLE_ADMIN = 'ADMIN'
+    ROLE_MANAGER = 'MANAGER'
+    ROLE_MEMBER = 'MEMBER'
+    ROLE_CHOICES = (
+        (ROLE_ADMIN, 'Admin'),
+        (ROLE_MANAGER, 'Manager'),
+        (ROLE_MEMBER, 'Member'),
+    )
+
+    STATUS_INVITED = 'INVITED'
+    STATUS_ACTIVE = 'ACTIVE'
+    STATUS_REMOVED = 'REMOVED'
+    STATUS_CHOICES = (
+        (STATUS_INVITED, 'Invited'),
+        (STATUS_ACTIVE, 'Active'),
+        (STATUS_REMOVED, 'Removed'),
+    )
+
+    enterprise = models.ForeignKey(Enterprise, related_name='team_members', on_delete=models.CASCADE)
+    email = models.EmailField()
+    role = models.CharField(max_length=16, choices=ROLE_CHOICES, default=ROLE_MEMBER)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_INVITED)
+    user = models.ForeignKey(User, null=True, blank=True, related_name='team_memberships', on_delete=models.SET_NULL)
+    invitation_token = models.CharField(max_length=64, blank=True)
+    invited_by = models.ForeignKey(User, null=True, blank=True, related_name='team_invites_sent', on_delete=models.SET_NULL)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ('enterprise', 'email')
+
+    def __str__(self) -> str:
+        return f"{self.email} - {self.enterprise_id} ({self.role})"

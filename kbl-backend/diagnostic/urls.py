@@ -38,6 +38,7 @@ from .views import (
     EnterpriseProfileView,
     SettingsPageView,
     ActionItemViewSet,
+    TeamMemberViewSet,
 )
 
 router = DefaultRouter()
@@ -48,6 +49,7 @@ router.register(r'responses', QuestionResponseViewSet, basename='response')
 router.register(r'summaries', ScoreSummaryViewSet, basename='scoresummary')
 router.register(r'attachments', AttachmentViewSet, basename='attachment')
 router.register(r'action-items', ActionItemViewSet, basename='actionitem')
+router.register(r'team', TeamMemberViewSet, basename='teammember')
 
 urlpatterns = [
     path('', include(router.urls)),

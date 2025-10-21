@@ -21,6 +21,73 @@ export async function apiLogin(email: string, password: string): Promise<JwtPair
   return res.json();
 }
 
+// Team APIs
+export async function apiTeamList(access: string) {
+  const res = await fetch('/api/team/', {
+    headers: { ...defaultHeaders, Authorization: `Bearer ${access}` },
+  });
+  if (!res.ok) {
+    let detail = 'Failed to load team';
+    try { const j = await res.json(); detail = j?.detail || JSON.stringify(j); } catch {}
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
+export async function apiTeamCreate(access: string, payload: { enterprise: number; email: string; role?: string }) {
+  const res = await fetch('/api/team/', {
+    method: 'POST',
+    headers: { ...defaultHeaders, Authorization: `Bearer ${access}` },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    let detail = 'Failed to add team member';
+    try { const j = await res.json(); detail = j?.detail || JSON.stringify(j); } catch {}
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
+export async function apiTeamUpdate(access: string, id: number, payload: any) {
+  const res = await fetch(`/api/team/${id}/`, {
+    method: 'PATCH',
+    headers: { ...defaultHeaders, Authorization: `Bearer ${access}` },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    let detail = 'Failed to update team member';
+    try { const j = await res.json(); detail = j?.detail || JSON.stringify(j); } catch {}
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
+export async function apiTeamDelete(access: string, id: number) {
+  const res = await fetch(`/api/team/${id}/`, {
+    method: 'DELETE',
+    headers: { ...defaultHeaders, Authorization: `Bearer ${access}` },
+  });
+  if (!res.ok) {
+    let detail = 'Failed to delete team member';
+    try { const j = await res.json(); detail = j?.detail || JSON.stringify(j); } catch {}
+    throw new Error(detail);
+  }
+}
+
+export async function apiTeamAccept(access: string, token: string) {
+  const res = await fetch('/api/team/accept/', {
+    method: 'POST',
+    headers: { ...defaultHeaders, Authorization: `Bearer ${access}` },
+    body: JSON.stringify({ token }),
+  });
+  if (!res.ok) {
+    let detail = 'Failed to accept invite';
+    try { const j = await res.json(); detail = j?.detail || JSON.stringify(j); } catch {}
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
 export async function apiMySummaries(access: string) {
   const res = await fetch('/api/my/enterprises-summaries/', {
     headers: { ...defaultHeaders, Authorization: `Bearer ${access}` },
@@ -410,3 +477,5 @@ export async function apiMyAssessmentSessions(access: string) {
   }
   return res.json();
 }
+
+ 

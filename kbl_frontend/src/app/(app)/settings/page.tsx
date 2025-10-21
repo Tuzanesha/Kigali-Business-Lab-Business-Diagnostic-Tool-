@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Edit, Trash2, PlusCircle } from 'lucide-react';
 import './settings.css';
 import { useRouter } from 'next/navigation';
-import { apiProfileGet, apiProfileUpdate, apiPasswordChange, apiAccountDelete, apiNotificationsGet, apiNotificationsUpdate, apiEnterpriseProfileGet, apiEnterpriseProfileUpdate, apiEnterpriseCreate } from '../../../lib/api';
+import { apiProfileGet, apiProfileUpdate, apiPasswordChange, apiAccountDelete, apiNotificationsGet, apiNotificationsUpdate, apiEnterpriseProfileGet, apiEnterpriseProfileUpdate, apiEnterpriseCreate, apiTeamList, apiTeamCreate, apiTeamUpdate, apiTeamDelete } from '../../../lib/api';
 
 interface ButtonProps {
   children: React.ReactNode;
@@ -184,26 +184,77 @@ const EnterpriseProfileContent = () => {
 };
 
 const TeamContent = () => {
-    const initialTeam = [
-        { id: 1, name: 'John Doe', role: 'Admin', email: 'john.doe@example.com' },
-        { id: 2, name: 'Jane Smith', role: 'Manager', email: 'jane.smith@example.com' },
-        { id: 3, name: 'Peter Jones', role: 'Member', email: 'peter.jones@example.com' },
-    ];
-    const [team, setTeam] = useState(initialTeam);
+    const [team, setTeam] = useState<Array<any>>([]);
+    const [enterpriseId, setEnterpriseId] = useState<number | null>(null);
+    const [email, setEmail] = useState('');
+    const [role, setRole] = useState<'ADMIN'|'MANAGER'|'MEMBER'>('MEMBER');
 
-    const handleDelete = (memberId: number) => {
-        if (window.confirm('Are you sure you want to remove this team member?')) {
-            const deletePromise = new Promise<void>(resolve => {
-                setTimeout(() => {
-                    setTeam(prev => prev.filter(member => member.id !== memberId));
-                    resolve();
-                }, 1000);
-            });
-            toast.promise(deletePromise, {
-                loading: 'Removing member...',
-                success: 'Team member removed.',
-                error: 'Could not remove member.',
-            });
+    useEffect(() => {
+        const load = async () => {
+            const id = toast.loading('Loading team...');
+            try {
+                const access = localStorage.getItem('access');
+                if (!access) { toast.dismiss(id); return; }
+                const ep = await apiEnterpriseProfileGet(access);
+                setEnterpriseId(ep?.id || null);
+                const list = await apiTeamList(access);
+                const items = Array.isArray(list?.results) ? list.results : (Array.isArray(list) ? list : []);
+                setTeam(items);
+                toast.success('Team loaded', { id });
+            } catch (e:any) {
+                toast.error(e?.message || 'Failed to load team', { id });
+            }
+        };
+        load();
+    }, []);
+
+    const refresh = async () => {
+        try {
+            const access = localStorage.getItem('access')!;
+            const list = await apiTeamList(access);
+            const items = Array.isArray(list?.results) ? list.results : (Array.isArray(list) ? list : []);
+            setTeam(items);
+        } catch {}
+    };
+
+    const handleAdd = async () => {
+        if (!enterpriseId) { toast.error('Please create your enterprise profile first'); return; }
+        if (!email.trim()) { toast.error('Enter an email'); return; }
+        const id = toast.loading('Inviting member...');
+        try {
+            const access = localStorage.getItem('access')!;
+            await apiTeamCreate(access, { enterprise: enterpriseId, email: email.trim(), role });
+            setEmail('');
+            setRole('MEMBER');
+            await refresh();
+            toast.success('Invitation created', { id });
+        } catch (e:any) {
+            toast.error(e?.message || 'Failed to add member', { id });
+        }
+    };
+
+    const handleRoleChange = async (idValue: number, newRole: 'ADMIN'|'MANAGER'|'MEMBER') => {
+        const id = toast.loading('Updating role...');
+        try {
+            const access = localStorage.getItem('access')!;
+            await apiTeamUpdate(access, idValue, { role: newRole });
+            await refresh();
+            toast.success('Role updated', { id });
+        } catch (e:any) {
+            toast.error(e?.message || 'Failed to update role', { id });
+        }
+    };
+
+    const handleDelete = async (memberId: number) => {
+        if (!window.confirm('Are you sure you want to remove this team member?')) return;
+        const id = toast.loading('Removing member...');
+        try {
+            const access = localStorage.getItem('access')!;
+            await apiTeamDelete(access, memberId);
+            await refresh();
+            toast.success('Team member removed', { id });
+        } catch (e:any) {
+            toast.error(e?.message || 'Could not remove member', { id });
         }
     };
 
@@ -211,21 +262,32 @@ const TeamContent = () => {
         <div className="settings-card">
             <div className="team-header">
                 <h2 className="settings-card-header" style={{border: 'none', padding: 0, margin: 0}}>Manage Team</h2>
-                <Link href="/settings/team/add" className="button button-primary">
-                    <PlusCircle size={18} style={{marginRight: '0.5rem'}}/>
-                    Add New Member
-                </Link>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <input className="form-input" placeholder="Email address" value={email} onChange={e=>setEmail(e.target.value)} />
+                    <select className="form-select" value={role} onChange={e=>setRole(e.target.value as any)}>
+                        <option value="ADMIN">Admin</option>
+                        <option value="MANAGER">Manager</option>
+                        <option value="MEMBER">Member</option>
+                    </select>
+                    <button className="button button-primary" onClick={handleAdd}>
+                        <PlusCircle size={18} style={{marginRight: '0.5rem'}}/>
+                        Add Member
+                    </button>
+                </div>
             </div>
             <div className="team-list-container">
                 {team.map(member => (
                     <div key={member.id} className="team-member-item">
-                        <span className="team-member-name">{member.name}</span>
-                        <span className="team-member-role">{member.role}</span>
-                        <span className="team-member-email">{member.email}</span>
+                        <span className="team-member-name">{member.email}</span>
+                        <span className="team-member-role">
+                            <select className="form-select" value={member.role} onChange={e=>handleRoleChange(member.id, e.target.value as any)}>
+                                <option value="ADMIN">Admin</option>
+                                <option value="MANAGER">Manager</option>
+                                <option value="MEMBER">Member</option>
+                            </select>
+                        </span>
+                        <span className="team-member-email">{member.status}</span>
                         <div className="team-member-actions">
-                            <Link href={`/settings/team/${member.id}/edit`} className="button button-secondary">
-                                <Edit size={16} />
-                            </Link>
                             <Button variant="danger" onClick={() => handleDelete(member.id)}>
                                 <Trash2 size={16} />
                             </Button>

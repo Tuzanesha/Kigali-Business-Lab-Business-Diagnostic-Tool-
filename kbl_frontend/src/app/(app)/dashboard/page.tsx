@@ -114,7 +114,7 @@ import toast from 'react-hot-toast';
 import styles from './dashboard.module.css';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { apiDashboard, apiEnterpriseProfileGet, apiMySummaries, apiProfileGet, apiMyAssessmentStats } from '../../../lib/api';
+import { apiDashboard, apiEnterpriseProfileGet, apiMySummaries, apiProfileGet, apiMyAssessmentStats, apiMyAssessmentSessions, apiCategories } from '../../../lib/api';
 
 const NewUserWelcome = () => {
   return (
@@ -140,6 +140,46 @@ const NewUserWelcome = () => {
 
 
 const ExistingUserDashboard = () => {
+  // Render X-axis labels on 1-2 lines without rotation (no oblique)
+  const wrapLabel = (label: string, maxPerLine = 14, maxLines = 2): string[] => {
+    if (!label) return [''];
+    const words = String(label).split(' ');
+    const lines: string[] = [];
+    let current = '';
+    for (const w of words) {
+      const tentative = current ? current + ' ' + w : w;
+      if (tentative.length <= maxPerLine) {
+        current = tentative;
+      } else {
+        if (current) lines.push(current);
+        current = w;
+      }
+      if (lines.length === maxLines - 1 && words.indexOf(w) < words.length - 1) {
+        // Put the rest in the last line if exceeding maxLines
+        const remaining = words.slice(words.indexOf(w) + 1).join(' ');
+        const last = current ? current + ' ' + remaining : remaining;
+        lines.push(last);
+        current = '';
+        break;
+      }
+    }
+    if (current) lines.push(current);
+    return lines.slice(0, maxLines);
+  };
+
+  const XTick = (props: any) => {
+    const { x, y, payload } = props;
+    const lines = wrapLabel(payload?.value || '', 14, 2);
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <text textAnchor="middle" fill="#64748b" fontSize={11} dy={14}>
+          {lines.map((ln, i) => (
+            <tspan key={i} x={0} dy={i === 0 ? 0 : 12}>{ln}</tspan>
+          ))}
+        </text>
+      </g>
+    );
+  };
   const router = useRouter();
   const [overallPct, setOverallPct] = useState<number>(0);
   const [enterprises, setEnterprises] = useState<number>(0);
@@ -148,6 +188,7 @@ const ExistingUserDashboard = () => {
   const [assessmentsCompleted, setAssessmentsCompleted] = useState<number>(0);
   const [openActions, setOpenActions] = useState<number>(0);
   const [highPriority, setHighPriority] = useState<number>(0);
+  const [deltaPct, setDeltaPct] = useState<number>(0);
 
   // previous values are placeholders until we have historical data
 
@@ -177,13 +218,36 @@ const ExistingUserDashboard = () => {
           setOpenActions(Number(stats?.open_action_items || 0));
           setHighPriority(Number(stats?.high_priority_actions || 0));
         } catch {}
-        // Use summaries to populate overall and section chart
+        // Build chart from the last two AssessmentSessions and ensure 8 categories
+        // Fetch sessions (latest first)
+        const sessionsResp = await apiMyAssessmentSessions(access);
+        const sessions = Array.isArray(sessionsResp?.results) ? sessionsResp.results : [];
+        const latest = sessions[0] || null;
+        const previous = sessions[1] || null;
+        // Fallback to dashboard summary if no session yet
+        const latestOverall = latest && typeof latest.overall_percentage === 'number' ? Number(latest.overall_percentage) : Number(data?.latest_overall_percentage || 0);
+        const previousOverall = previous && typeof previous.overall_percentage === 'number' ? Number(previous.overall_percentage) : 0;
+        setOverallPct(latestOverall);
+        setDeltaPct(latestOverall - previousOverall);
+        // Categories list for consistent labels and order
+        const cats = await apiCategories(access);
+        const catList = Array.isArray(cats?.results) ? cats.results : (Array.isArray(cats) ? cats : []);
+        const fromApi: string[] = catList.map((c: any) => String(c?.name || '')).filter(Boolean);
+        // Read section scores from sessions if available; each entry shaped like { percentage }
+        const latestSections = (latest as any)?.section_scores || {};
+        const prevSections = (previous as any)?.section_scores || {};
+        // Also get latest summary as a fallback for full category keys
         const summaries = await apiMySummaries(access);
-        const first = (Array.isArray(summaries?.results) ? summaries.results : [])[0] || {};
-        const overall = Number(first?.overall_percentage || data?.latest_overall_percentage || 0);
-        setOverallPct(overall);
-        const sections = first?.section_scores || {};
-        const rows = Object.entries(sections).map(([name, v]: any) => ({ name, latest: Number(v?.percentage || 0), previous: 0 }));
+        const firstSummary = (Array.isArray(summaries?.results) ? summaries.results : [])[0] || {};
+        const summarySections = firstSummary?.section_scores || {};
+        // Build unified ordered list of names: categories first, then any extra keys found in data
+        const unionNames = Array.from(new Set([...(fromApi || []), ...Object.keys(summarySections || {}), ...Object.keys(latestSections || {})]));
+        const orderedNames = unionNames.slice(0, 8);
+        const rows = (orderedNames.length ? orderedNames : Object.keys(latestSections)).map((name: string) => {
+          const lv = latestSections?.[name]?.percentage ?? latestSections?.[name] ?? 0;
+          const pv = prevSections?.[name]?.percentage ?? prevSections?.[name] ?? 0;
+          return { name, latest: Number(lv || 0), previous: Number(pv || 0) };
+        });
         setChartData(rows);
         toast.success('Dashboard loaded', { id, duration: 1500 });
       } catch (e:any) {
@@ -214,8 +278,8 @@ const ExistingUserDashboard = () => {
           <p className={styles['kpi-title']}>Overall Health Score</p>
           <p className={styles['kpi-value']}>{Math.round(overallPct)}%</p>
           <p className={styles['kpi-subtext']}>
-            <ArrowUp color="green" height={16} width={16} />
-            +5% vs last assessment
+            <ArrowUp color={deltaPct >= 0 ? 'green' : 'red'} height={16} width={16} />
+            {deltaPct >= 0 ? `+${Math.abs(Math.round(deltaPct))}%` : `-${Math.abs(Math.round(deltaPct))}%`} vs previous
           </p>
         </div>
         <div className={styles['kpi-card']}>
@@ -233,7 +297,18 @@ const ExistingUserDashboard = () => {
 
       <div className={styles['main-chart-card']}>
         <div className={styles['chart-header']}><h2 className={styles['chart-title']}>HISTORICAL PERFORMANCE</h2><div className={styles['chart-legend']}><div className={styles['legend-item']}><div className={styles['legend-color-box']} style={{ backgroundColor: '#01497f' }}></div><span>Latest Assessment</span></div><div className={styles['legend-item']}><div className={styles['legend-color-box']} style={{ backgroundColor: '#7dd3fc' }}></div><span>Previous Assessment</span></div></div></div>
-        <div style={{ width: '100%', height: 300 }}><ResponsiveContainer><BarChart data={chartData} margin={{ top: 5, right: 20, left: -20, bottom: 5 }}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} /><YAxis tick={{ fontSize: 12, fill: '#64748b' }} unit="%" axisLine={false} tickLine={false} /><Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '0.5rem' }} cursor={{ fill: '#f1f5f9' }} /><Bar dataKey="previous" fill="#7dd3fc" radius={[4, 4, 0, 0]} /><Bar dataKey="latest" fill="#01497f" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer></div>
+        <div style={{ width: '100%', height: 360 }}>
+          <ResponsiveContainer>
+            <BarChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 60 }} barCategoryGap={16} barGap={8}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="name" interval={0} height={60} tick={<XTick />} tickMargin={16} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 12, fill: '#64748b' }} unit="%" axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '0.5rem' }} cursor={{ fill: '#f1f5f9' }} />
+              <Bar dataKey="previous" fill="#7dd3fc" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="latest" fill="#01497f" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       <div className={styles['insight-grid']}><div className={styles['insight-card']}><div className={styles['insight-icon']}><TrendingUp /></div><div><h3 className={styles['insight-title']}>Greatest Improvement</h3><p className={styles['insight-text']}>The &apos;Marketing&apos; score increased by 15% this quarter.</p></div></div><div className={styles['insight-card']}><div className={styles['insight-icon']}><AlertTriangle /></div><div><h3 className={styles['insight-title']}>Priority Focus Area</h3><p className={styles['insight-text']}>&apos;Financial Planning&apos; is the lowest scoring area at 25%.</p></div></div></div>
