@@ -1085,57 +1085,7 @@ class EnterpriseReportView(APIView):
             'updated_at': getattr(summary, 'updated_at', None),
         })
 
-
-# Minimal web pages (static HTML + JS calling the API)
-
-class LoginPageView(TemplateView):
-    template_name = "diagnostic/login.html"
-
-
-class SignupPageView(TemplateView):
-    template_name = "diagnostic/signup.html"
-
-
-class DashboardPageView(TemplateView):
-    template_name = "diagnostic/dashboard.html"
-
-    def dispatch(self, request, *args, **kwargs):
-        # Gate the page: if not verified, redirect to verify page
-        if not request.user.is_authenticated:
-            return super().dispatch(request, *args, **kwargs)
-        has_email_verified = EmailOTP.objects.filter(user=request.user, is_verified=True).exists()
-        if not has_email_verified:
-            from django.shortcuts import redirect
-            return redirect('/api/web/verify/')
-        return super().dispatch(request, *args, **kwargs)
-
-
-class EnterpriseCreatePageView(TemplateView):
-    template_name = "diagnostic/enterprise_new.html"
-
-
-class AssessmentPageView(TemplateView):
-    template_name = "diagnostic/assessment.html"
-
-
-class VerifyPageView(TemplateView):
-    template_name = "diagnostic/verify.html"
-
-
-class PasswordResetRequestPageView(TemplateView):
-    template_name = "diagnostic/password_reset_request.html"
-
-
-class PasswordResetConfirmPageView(TemplateView):
-    template_name = "diagnostic/password_reset_confirm.html"
-
-
-class SettingsPageView(TemplateView):
-    template_name = "diagnostic/settings.html"
-
-
-class AssessmentReportPageView(TemplateView):
-    template_name = "diagnostic/assessment_report.html"
+# API Views Only - Template views have been removed as they're now handled by the frontend
 
 from django.shortcuts import render
 

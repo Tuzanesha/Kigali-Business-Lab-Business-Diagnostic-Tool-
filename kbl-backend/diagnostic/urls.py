@@ -11,24 +11,15 @@ from .views import (
     AttachmentViewSet,
     RegisterView,
     DashboardView,
-    LoginPageView,
-    SignupPageView,
-    DashboardPageView,
-    EnterpriseCreatePageView,
-    AssessmentPageView,
-    VerifyPageView,
     AuthStatusView,
     MyEnterprisesSummariesView,
     RecomputeAllSummariesView,
     EnterpriseReportView,
-    AssessmentReportPageView,
     LogoutView,
     MyAssessmentStatsView,
     MyAssessmentSessionsView,
     PasswordResetRequestView,
     PasswordResetConfirmView,
-    PasswordResetRequestPageView,
-    PasswordResetConfirmPageView,
     ProfileView,
     AvatarUploadView,
     AvatarRemoveView,
@@ -36,7 +27,6 @@ from .views import (
     DeleteAccountView,
     NotificationPreferenceView,
     EnterpriseProfileView,
-    SettingsPageView,
     ActionItemViewSet,
     TeamMemberViewSet,
     AssessmentSessionDeleteView,
@@ -87,17 +77,7 @@ urlpatterns = [
     # Assessment sessions endpoints
     path('assessment-sessions/<int:pk>/', AssessmentSessionDeleteView.as_view(), name='api-assessment-session-delete'),
     
-    # Minimal web pages
-    path('web/login/', LoginPageView.as_view()),
-    path('web/signup/', SignupPageView.as_view()),
-    path('web/dashboard/', DashboardPageView.as_view()),
-    path('web/verify/', VerifyPageView.as_view()),
-    path('web/password-reset/', PasswordResetRequestPageView.as_view()),
-    path('web/password-reset/confirm/', PasswordResetConfirmPageView.as_view()),
-    path('web/settings/', SettingsPageView.as_view()),
-    path('web/enterprise/new/', EnterpriseCreatePageView.as_view()),
-    path('web/assessment/', AssessmentPageView.as_view()),
-    path('web/assessment-report/', AssessmentReportPageView.as_view()),
+    # Web routes have been removed as they're now handled by the frontend
 ]
 
 
