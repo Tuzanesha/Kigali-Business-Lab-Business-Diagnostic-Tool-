@@ -213,8 +213,9 @@ class TeamMember(TimeStampedModel):
     role = models.CharField(max_length=16, choices=ROLE_CHOICES, default=ROLE_MEMBER)
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_INVITED)
     user = models.ForeignKey(User, null=True, blank=True, related_name='team_memberships', on_delete=models.SET_NULL)
-    invitation_token = models.CharField(max_length=64, blank=True)
-    invited_by = models.ForeignKey(User, null=True, blank=True, related_name='team_invites_sent', on_delete=models.SET_NULL)
+    invitation_token = models.CharField(max_length=64, unique=True, null=True, blank=True)
+    invited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='invited_team_members')
+    invitation_expires_at = models.DateTimeField(null=True, blank=True, help_text='When this invitation expires')
     accepted_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:

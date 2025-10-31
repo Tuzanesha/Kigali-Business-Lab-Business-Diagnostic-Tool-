@@ -124,7 +124,13 @@ export async function apiProfileGet(access: string) {
   return res.json();
 }
 
-export async function apiProfileUpdate(access: string, payload: any) {
+export async function apiProfileUpdate(access: string, payload: {
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone?: string;
+  title?: string;
+}) {
   const res = await fetch('/api/account/profile/', {
     method: 'PUT',
     headers: { ...defaultHeaders, Authorization: `Bearer ${access}` },
@@ -137,6 +143,39 @@ export async function apiProfileUpdate(access: string, payload: any) {
   }
   return res.json();
 }
+
+export async function apiUploadAvatar(access: string, file: File) {
+  const formData = new FormData();
+  formData.append('avatar', file);
+  
+  const res = await fetch('/api/account/avatar/upload/', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${access}` },
+    body: formData,
+  });
+  
+  if (!res.ok) {
+    let detail = 'Failed to upload avatar';
+    try { const j = await res.json(); detail = j?.detail || JSON.stringify(j); } catch {}
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
+export async function apiRemoveAvatar(access: string) {
+  const res = await fetch('/api/account/avatar/remove/', {
+    method: 'POST',
+    headers: { ...defaultHeaders, Authorization: `Bearer ${access}` },
+  });
+  
+  if (!res.ok) {
+    let detail = 'Failed to remove avatar';
+    try { const j = await res.json(); detail = j?.detail || JSON.stringify(j); } catch {}
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
 
 export async function apiPasswordChange(access: string, current_password: string, new_password: string, confirm_password: string) {
   const res = await fetch('/api/account/password/change/', {
@@ -476,6 +515,60 @@ export async function apiMyAssessmentSessions(access: string) {
     throw new Error(detail);
   }
   return res.json();
+}
+
+// Delete an assessment session
+export async function apiDeleteAssessmentSession(access: string, sessionId: number): Promise<void> {
+  // The correct URL should be /api/assessment-sessions/{id}/
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+  const url = `${baseUrl}/api/assessment-sessions/${sessionId}/`;
+  
+  console.log('Deleting assessment session at URL:', url);
+  
+  try {
+    const res = await fetch(url, {
+      method: 'DELETE',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${access}`
+      },
+      credentials: 'include',
+    });
+    
+    const contentType = res.headers.get('content-type');
+    
+    if (!res.ok) {
+      let errorDetail = `Failed to delete assessment session (${res.status} ${res.statusText})`;
+      
+      if (contentType && contentType.includes('application/json')) {
+        try {
+          const data = await res.json();
+          errorDetail = data.detail || JSON.stringify(data);
+        } catch (e) {
+          console.error('Failed to parse error response:', e);
+        }
+      } else if (contentType && contentType.includes('text/html')) {
+        const text = await res.text();
+        console.error('Received HTML response instead of JSON. This might indicate a routing or server error.');
+        console.error('Response preview:', text.substring(0, 200));
+      }
+      
+      // If we're getting a 404, it might be because the URL is incorrect
+      if (res.status === 404) {
+        errorDetail = 'The requested resource was not found. Please check the URL and try again.';
+      }
+      
+      throw new Error(errorDetail);
+    }
+    
+    // If we get here, the deletion was successful
+    console.log(`Successfully deleted assessment session ${sessionId}`);
+    
+  } catch (error) {
+    console.error('Error in apiDeleteAssessmentSession:', error);
+    throw new Error(error instanceof Error ? error.message : 'Failed to delete assessment session');
+  }
 }
 
  

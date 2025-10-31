@@ -189,14 +189,18 @@ const ExistingUserDashboard = () => {
   const [openActions, setOpenActions] = useState<number>(0);
   const [highPriority, setHighPriority] = useState<number>(0);
   const [deltaPct, setDeltaPct] = useState<number>(0);
-
-  // previous values are placeholders until we have historical data
+  const [greatestImprovement, setGreatestImprovement] = useState<{
+    enterprise: string;
+    improvement: number;
+  } | null>(null);
+  const [priorityFocus, setPriorityFocus] = useState<{
+    category: string;
+    score: number;
+  } | null>(null);
 
   useEffect(() => {
     const load = async () => {
-      const id = 'dashboard-load';
-      toast.dismiss(id);
-      toast.loading('Loading dashboard...', { id });
+      const id = toast.loading('Loading dashboard...');
       try {
         const access = localStorage.getItem('access');
         if (!access) {
@@ -214,9 +218,23 @@ const ExistingUserDashboard = () => {
         // Load KPI stats
         try {
           const stats = await apiMyAssessmentStats(access);
-          setAssessmentsCompleted(Number(stats?.assessments_completed || 0));
-          setOpenActions(Number(stats?.open_action_items || 0));
-          setHighPriority(Number(stats?.high_priority_actions || 0));
+          setAssessmentsCompleted(stats.assessments_completed);
+          setOpenActions(stats.open_action_items);
+          setHighPriority(stats.high_priority_actions);
+          // Set greatest improvement data if available
+          if (stats.greatest_improvement) {
+            setGreatestImprovement({
+              enterprise: stats.greatest_improvement.enterprise,
+              improvement: stats.greatest_improvement.improvement
+            });
+          }
+          // Set priority focus data if available
+          if (stats.priority_focus) {
+            setPriorityFocus({
+              category: stats.priority_focus.category,
+              score: stats.priority_focus.score
+            });
+          }
         } catch {}
         // Build chart from the last two AssessmentSessions and ensure 8 categories
         // Fetch sessions (latest first)
@@ -311,7 +329,34 @@ const ExistingUserDashboard = () => {
         </div>
       </div>
 
-      <div className={styles['insight-grid']}><div className={styles['insight-card']}><div className={styles['insight-icon']}><TrendingUp /></div><div><h3 className={styles['insight-title']}>Greatest Improvement</h3><p className={styles['insight-text']}>The &apos;Marketing&apos; score increased by 15% this quarter.</p></div></div><div className={styles['insight-card']}><div className={styles['insight-icon']}><AlertTriangle /></div><div><h3 className={styles['insight-title']}>Priority Focus Area</h3><p className={styles['insight-text']}>&apos;Financial Planning&apos; is the lowest scoring area at 25%.</p></div></div></div>
+      <div className={styles['insight-grid']}>
+        <div className={styles['insight-card']}>
+          <div className={styles['insight-icon']}><TrendingUp /></div>
+          <div>
+            <h3 className={styles['insight-title']}>Greatest Improvement</h3>
+            {greatestImprovement ? (
+              <p className={styles['insight-text']}>
+                <strong>{greatestImprovement.enterprise}</strong> improved by {greatestImprovement.improvement}% since last assessment.
+              </p>
+            ) : (
+              <p className={styles['insight-text']}>No improvement data available yet.</p>
+            )}
+          </div>
+        </div>
+        <div className={styles['insight-card']}>
+          <div className={styles['insight-icon']}><AlertTriangle /></div>
+          <div>
+            <h3 className={styles['insight-title']}>Priority Focus Area</h3>
+            {priorityFocus ? (
+              <p className={styles['insight-text']}>
+                <strong>{priorityFocus.category}</strong> is the lowest scoring area at {priorityFocus.score}%.
+              </p>
+            ) : (
+              <p className={styles['insight-text']}>No priority focus data available yet.</p>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

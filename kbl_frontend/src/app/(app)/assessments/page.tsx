@@ -6,52 +6,116 @@ import toast from 'react-hot-toast';
 import styles from './assessments.module.css';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { apiMyAssessmentSessions } from '../../../lib/api';
+import { apiMyAssessmentSessions, apiDeleteAssessmentSession } from '../../../lib/api';
 
-type AssessmentItem = { id: number; enterpriseId: number; enterprise: string; date: string; score: string; status: 'completed'|'in-progress' };
+type AssessmentItem = { 
+  id: number; 
+  enterpriseId: number; 
+  enterprise: string; 
+  date: string; 
+  score: string; 
+  status: 'completed'|'in-progress';
+  created_at: string;
+};
 
 export default function AssessmentsPage() {
   const router = useRouter();
   const [assessments, setAssessments] = useState<AssessmentItem[]>([]);
 
   useEffect(() => {
-    const load = async () => {
-      const id = toast.loading('Loading assessments...');
+    loadAssessments();
+  }, []);
+
+  const loadAssessments = async () => {
+    const id = toast.loading('Loading assessments...');
+    try {
+      const access = localStorage.getItem('access');
+      if (!access) { 
+        toast.dismiss(id); 
+        router.push('/login'); 
+        return; 
+      }
+      
+      const response = await apiMyAssessmentSessions(access);
+      console.log('Assessment sessions response:', response);
+      
+      // Handle different possible response formats
+      let data: any[] = [];
+      if (Array.isArray(response)) {
+        data = response;
+      } else if (response && typeof response === 'object') {
+        if (Array.isArray(response.results)) {
+          data = response.results;
+        } else if (response.data && Array.isArray(response.data)) {
+          data = response.data;
+        } else if (response.assessments && Array.isArray(response.assessments)) {
+          data = response.assessments;
+        } else {
+          // If we can't find an array, try to use the response as a single item
+          data = [response];
+        }
+      }
+      
+      console.log('Processed assessment sessions data:', data);
+      
+      const items: AssessmentItem[] = data.map((s: any) => ({
+        id: s.id || 0,
+        enterpriseId: (s.enterprise?.id || s.enterprise_id) || 0,
+        enterprise: s.enterprise?.name || s.enterprise_name || 'Unknown Enterprise',
+        date: s.created_at ? new Date(s.created_at).toLocaleString() : '—',
+        score: (s.overall_percentage !== null && s.overall_percentage !== undefined) 
+          ? `${Math.round(s.overall_percentage)}%` 
+          : 'N/A',
+        status: (s.overall_percentage !== null && s.overall_percentage !== undefined) 
+          ? 'completed' 
+          : 'in-progress',
+        created_at: s.created_at || new Date().toISOString(),
+      }));
+      
+      setAssessments(items);
+      toast.dismiss(id);
+    } catch (e: any) {
+      console.error('Error loading assessments:', {
+        message: e.message,
+        stack: e.stack,
+        response: e.response
+      });
+      toast.error(e?.message || 'Could not load assessments.', { id });
+    }
+  };
+
+  const handleDelete = async (assessmentId: number) => {
+    if (window.confirm('Are you sure you want to delete this assessment session? This action cannot be undone.')) {
+      const id = toast.loading('Deleting assessment session...');
       try {
         const access = localStorage.getItem('access');
-        if (!access) { toast.dismiss(id); router.push('/login'); return; }
-        const data = await apiMyAssessmentSessions(access);
-        const items: AssessmentItem[] = (data?.results || []).map((s: any) => ({
-          id: Number(s.id),
-          enterpriseId: Number(s.enterprise_id),
-          enterprise: String(s.enterprise_name || ''),
-          date: s.created_at ? new Date(s.created_at).toLocaleString() : '—',
-          score: typeof s.overall_percentage === 'number' ? `${Math.round(s.overall_percentage)}%` : 'N/A',
-          status: (typeof s.overall_percentage === 'number') ? 'completed' : 'in-progress',
-        }));
-        setAssessments(items);
-        toast.success('Assessments loaded', { id });
-      } catch (e:any) {
-        toast.error(e?.message || 'Could not load assessments.', { id });
+        if (!access) {
+          toast.dismiss(id);
+          router.push('/login');
+          return;
+        }
+
+        console.log('Attempting to delete assessment session:', assessmentId);
+        console.log('Access token:', access ? 'Present' : 'Missing');
+        
+        await apiDeleteAssessmentSession(access, assessmentId);
+        
+        // Update local state to remove the deleted assessment session
+        setAssessments(prev => {
+          const updated = prev.filter(a => a.id !== assessmentId);
+          console.log('Updated assessments list:', updated);
+          return updated;
+        });
+        
+        toast.success('Assessment session deleted successfully', { id });
+      } catch (error: any) {
+        console.error('Error deleting assessment session:', {
+          message: error.message,
+          stack: error.stack,
+          response: error.response
+        });
+        toast.error(error.message || 'Failed to delete assessment session', { id });
       }
-    };
-    load();
-  }, [router]);
-
-  const handleDelete = (assessmentId: number) => {
-    if (window.confirm('Are you sure you want to delete this assessment?')) {
-      const deletePromise = new Promise<void>((resolve) => {
-        setTimeout(() => {
-          setAssessments(prev => prev.filter(assessment => assessment.id !== assessmentId));
-          resolve();
-        }, 1000);
-      });
-
-      toast.promise(deletePromise, {
-        loading: 'Deleting assessment...',
-        success: 'Assessment deleted successfully.',
-        error: 'Could not delete assessment.',
-      });
     }
   };
 
@@ -78,51 +142,50 @@ export default function AssessmentsPage() {
               </tr>
             </thead>
             <tbody>
-              {assessments.map((assessment) => (
-                <tr key={assessment.id}>
-                  <td>{assessment.date}</td>
-                  <td>{assessment.enterprise}</td>
-                  <td>
-                    <span className={`${styles.statusBadge} ${assessment.status === 'completed' ? styles.statusCompleted : styles.statusInProgress}`}>
-                      {assessment.status}
-                    </span>
-                  </td>
-                  <td>{assessment.score}</td>
-                  <td className={styles.actionsCell}>
-                    <Link href={`/assessments/${assessment.enterpriseId}`} className={styles.actionButton} aria-label="View">
-                      <Eye height={18} width={18} />
-                    </Link>
-                    <button onClick={() => handleDelete(assessment.id)} className={styles.actionButton} aria-label="Delete">
-                      <Trash2 height={18} width={18} />
-                    </button>
+              {assessments.length === 0 ? (
+                <tr>
+                  <td colSpan={5} style={{ textAlign: 'center', padding: '20px' }}>
+                    No assessments found. Click "Start New Assessment" to begin.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                assessments.map((assessment) => (
+                  <tr key={assessment.id}>
+                    <td>{assessment.date}</td>
+                    <td>{assessment.enterprise}</td>
+                    <td>
+                      <span 
+                        className={`${styles.statusBadge} ${
+                          assessment.status === 'completed' 
+                            ? styles.statusCompleted 
+                            : styles.statusInProgress
+                        }`}
+                      >
+                        {assessment.status.replace('-', ' ')}
+                      </span>
+                    </td>
+                    <td>{assessment.score}</td>
+                    <td className={styles.actionsCell}>
+                      <Link 
+                        href={`/assessments/${assessment.enterpriseId}`} 
+                        className={styles.actionButton} 
+                        aria-label="View"
+                      >
+                        <Eye height={18} width={18} />
+                      </Link>
+                      <button 
+                        onClick={() => handleDelete(assessment.id)} 
+                        className={styles.actionButton} 
+                        aria-label="Delete"
+                      >
+                        <Trash2 height={18} width={18} />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
-        </div>
-        <div className={styles.mobileList}>
-          {assessments.map((assessment) => (
-            <div key={assessment.id} className={styles.mobileCard}>
-              <div className={styles.mobileCardHeader}>
-                <p className={styles.mobileCardDate}>{assessment.date}</p>
-                <span className={`${styles.statusBadge} ${assessment.status === 'completed' ? styles.statusCompleted : styles.statusInProgress}`}>
-                  {assessment.status}
-                </span>
-              </div>
-              <div className={styles.mobileCardBody}>
-                <p className={styles.mobileCardScore}>{assessment.score}</p>
-                <div className={styles.actionsCell}>
-                  <Link href={`/assessments/${assessment.enterpriseId}`} className={styles.actionButton} aria-label="View">
-                    <Eye height={20} width={20} />
-                  </Link>
-                  <button onClick={() => handleDelete(assessment.id)} className={styles.actionButton} aria-label="Delete">
-                    <Trash2 height={20} width={20} />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
     </div>

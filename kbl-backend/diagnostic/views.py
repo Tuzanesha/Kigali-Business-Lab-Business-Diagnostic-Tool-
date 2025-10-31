@@ -8,6 +8,15 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
+from django.core.exceptions import ValidationError
+from django.db import transaction
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
+from django.conf import settings
+from django.urls import reverse
+
+# Email utilities
+from .utils.email import send_team_invitation_email
 
 from .models import Category, Question, Enterprise, QuestionResponse, ScoreSummary, Attachment, EmailOTP, PhoneOTP, ActionItem, TeamMember
 from .serializers import (
@@ -320,28 +329,115 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         import secrets
+        from django.utils import timezone
+        from datetime import timedelta
+        
         # Ensure enterprise belongs to user
         enterprise = serializer.validated_data.get('enterprise')
         if not Enterprise.objects.filter(id=enterprise.id, owner=self.request.user).exists():
             raise serializers.ValidationError({'enterprise': 'Not permitted'})
+        
+        # Generate token and set expiration (7 days from now)
         token = secrets.token_hex(16)
-        serializer.save(invited_by=self.request.user, invitation_token=token)
-
-    @action(detail=False, methods=['post'], url_path='accept')
-    def accept(self, request):
-        token = (request.data.get('token') or '').strip()
-        if not token:
-            return Response({'detail': 'token is required'}, status=400)
+        expires_at = timezone.now() + timedelta(days=7)
+        
+        # Save the team member with invitation details
+        team_member = serializer.save(
+            invited_by=self.request.user,
+            invitation_token=token,
+            status=TeamMember.STATUS_INVITED,
+            invitation_expires_at=expires_at
+        )
+        
+        # Send invitation email
         try:
-            member = TeamMember.objects.get(invitation_token=token, status=TeamMember.STATUS_INVITED)
-        except TeamMember.DoesNotExist:
-            return Response({'detail': 'Invalid or expired token'}, status=400)
-        member.status = TeamMember.STATUS_ACTIVE
-        member.user = request.user
-        from django.utils import timezone
-        member.accepted_at = timezone.now()
-        member.save(update_fields=['status', 'user', 'accepted_at', 'updated_at'])
-        return Response(TeamMemberSerializer(member).data)
+            accept_url = self.request.build_absolute_uri(
+                '/api/team/accept/'
+            ) + f'?token={token}'
+            
+            send_team_invitation_email(
+                inviter_name=self.request.user.get_full_name() or self.request.user.email,
+                invitee_email=team_member.email,
+                enterprise_name=enterprise.name,
+                invite_url=accept_url
+            )
+            
+            # Log successful email sending
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f'Sent invitation email to {team_member.email} for enterprise {enterprise.id}')
+            
+        except Exception as e:
+            # Log the error but don't fail the request
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f'Failed to send invitation email: {str(e)}', exc_info=True)
+
+    @action(detail=False, methods=['get', 'post'], 
+             permission_classes=[permissions.AllowAny],
+             authentication_classes=[])
+    def accept(self, request):
+        # For GET requests, show a form or redirect
+        if request.method == 'GET':
+            token = request.query_params.get('token', '').strip()
+            if not token:
+                return Response({'detail': 'Token is required'}, status=400)
+                
+            try:
+                member = TeamMember.objects.get(
+                    invitation_token=token, 
+                    status=TeamMember.STATUS_INVITED
+                )
+                
+                if member.invitation_expires_at and member.invitation_expires_at < timezone.now():
+                    return Response({'detail': 'Invitation has expired'}, status=400)
+                
+                # If it's a GET request, we'll return the member details for the frontend
+                return Response({
+                    'detail': 'Valid invitation',
+                    'enterprise_name': member.enterprise.name,
+                    'invited_by': member.invited_by.get_full_name() or member.invited_by.email,
+                    'email': member.email,
+                    'token': token
+                })
+                
+            except TeamMember.DoesNotExist:
+                return Response({'detail': 'Invalid or expired token'}, status=400)
+        
+        # For POST requests, process the acceptance
+        elif request.method == 'POST':
+            token = (request.data.get('token') or '').strip()
+            if not token:
+                return Response({'detail': 'Token is required'}, status=400)
+                
+            try:
+                member = TeamMember.objects.get(
+                    invitation_token=token, 
+                    status=TeamMember.STATUS_INVITED
+                )
+                
+                if member.invitation_expires_at and member.invitation_expires_at < timezone.now():
+                    return Response({'detail': 'Invitation has expired'}, status=400)
+                
+                # If user is already registered, link them
+                if request.user.is_authenticated:
+                    member.user = request.user
+                
+                # Update the member status to active
+                member.status = TeamMember.STATUS_ACTIVE
+                member.accepted_at = timezone.now()
+                member.save()
+                
+                return Response({
+                    'detail': 'Invitation accepted successfully',
+                    'enterprise_id': member.enterprise_id,
+                    'enterprise_name': member.enterprise.name,
+                    'is_authenticated': request.user.is_authenticated,
+                    'redirect_url': '/login/' if not request.user.is_authenticated else f'/enterprise/{member.enterprise_id}/'
+                })
+                
+            except TeamMember.DoesNotExist:
+                return Response({'detail': 'Invalid or expired token'}, status=400)
 
 
 from rest_framework.views import APIView
@@ -484,7 +580,50 @@ class DeleteAccountView(APIView):
         return Response({'detail': 'Account deleted'})
 
 
-from .models import NotificationPreference
+from .models import NotificationPreference, ScoreSummary, QuestionResponse, AssessmentSession
+
+class AssessmentSessionDeleteView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, pk):
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        logger.info(f"Received DELETE request for assessment session {pk} from user {request.user.id}")
+        
+        try:
+            # Get the assessment session and verify the user has permission
+            assessment = AssessmentSession.objects.select_related('enterprise').get(pk=pk)
+            
+            # Check if the user is the owner of the enterprise
+            if assessment.enterprise.owner_id != request.user.id:
+                logger.warning(f"User {request.user.id} is not the owner of enterprise {assessment.enterprise_id}")
+                return Response(
+                    {"detail": "You don't have permission to delete this assessment session."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+                
+            logger.info(f"Found assessment session: {assessment.id} for enterprise: {assessment.enterprise_id}")
+            
+            # Delete the assessment session
+            assessment_id = assessment.id
+            assessment.delete()
+            logger.info(f"Successfully deleted assessment session {assessment_id}")
+            
+            return Response(status=status.HTTP_204_NO_CONTENT)
+            
+        except AssessmentSession.DoesNotExist:
+            logger.warning(f"Assessment session {pk} not found")
+            return Response(
+                {"detail": "The requested assessment session does not exist or has already been deleted."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            logger.exception(f"Error deleting assessment session {pk}")
+            return Response(
+                {"detail": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class NotificationPreferenceView(APIView):
@@ -649,17 +788,79 @@ class MyAssessmentStatsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        # Count completed assessments as the number of AssessmentSession rows across user's enterprises
+        from .models import ActionItem, AssessmentSession, ScoreSummary, Category
+
+        # Get user's enterprises
         enterprises = Enterprise.objects.filter(owner=request.user)
-        from .models import ActionItem, AssessmentSession
+        
+        # Count completed assessments
         completed = AssessmentSession.objects.filter(enterprise__in=enterprises).count()
+        
         # Action items summary
         open_items = ActionItem.objects.filter(owner=request.user).exclude(status=ActionItem.STATUS_COMPLETED)
         high_priority = open_items.filter(priority=ActionItem.PRIORITY_HIGH).count()
+
+        # Get score summaries for all enterprises
+        summaries = ScoreSummary.objects.filter(enterprise__in=enterprises).select_related('enterprise')
+        
+        # Calculate greatest improvement
+        greatest_improvement = None
+        if summaries.count() > 1:
+            # Get the two most recent summaries for each enterprise
+            enterprises_with_improvement = []
+            for enterprise in enterprises:
+                enterprise_summaries = summaries.filter(enterprise=enterprise).order_by('-created_at')[:2]
+                if len(enterprise_summaries) == 2:
+                    latest, previous = enterprise_summaries
+                    improvement = float(latest.overall_percentage or 0) - float(previous.overall_percentage or 0)
+                    if improvement > 0:  # Only show positive improvements
+                        enterprises_with_improvement.append({
+                            'enterprise': enterprise.name,
+                            'improvement': improvement
+                        })
+            
+            if enterprises_with_improvement:
+                # Find the enterprise with the greatest improvement
+                greatest = max(enterprises_with_improvement, key=lambda x: x['improvement'])
+                greatest_improvement = {
+                    'enterprise': greatest['enterprise'],
+                    'improvement': round(greatest['improvement'], 1)
+                }
+
+        # Find priority focus area (category with lowest score)
+        priority_focus = None
+        if summaries.exists():
+            # Get the latest summary
+            latest_summary = summaries.latest('created_at')
+            
+            # Get all categories with their scores
+            categories = Category.objects.all()
+            category_scores = []
+            
+            for category in categories:
+                score_attr = f'score_{category.name.lower().replace(" ", "_")}'
+                if hasattr(latest_summary, score_attr):
+                    score = getattr(latest_summary, score_attr, 0)
+                    if score is not None and score > 0:  # Only include categories with a score
+                        category_scores.append({
+                            'name': category.name,
+                            'score': float(score)
+                        })
+            
+            if category_scores:
+                # Find the category with the lowest score
+                lowest_category = min(category_scores, key=lambda x: x['score'])
+                priority_focus = {
+                    'category': lowest_category['name'],
+                    'score': round(lowest_category['score'], 1)
+                }
+
         return Response({
             'assessments_completed': completed,
             'open_action_items': open_items.count(),
             'high_priority_actions': high_priority,
+            'greatest_improvement': greatest_improvement,
+            'priority_focus': priority_focus
         })
 
 

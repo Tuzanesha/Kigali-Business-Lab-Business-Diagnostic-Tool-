@@ -39,6 +39,7 @@ from .views import (
     SettingsPageView,
     ActionItemViewSet,
     TeamMemberViewSet,
+    AssessmentSessionDeleteView,
 )
 
 router = DefaultRouter()
@@ -82,6 +83,10 @@ urlpatterns = [
     path('my/enterprises-summaries/', MyEnterprisesSummariesView.as_view()),
     path('recompute/all/', RecomputeAllSummariesView.as_view()),
     path('enterprise/<int:pk>/report/', EnterpriseReportView.as_view()),
+    
+    # Assessment sessions endpoints
+    path('assessment-sessions/<int:pk>/', AssessmentSessionDeleteView.as_view(), name='api-assessment-session-delete'),
+    
     # Minimal web pages
     path('web/login/', LoginPageView.as_view()),
     path('web/signup/', SignupPageView.as_view()),
