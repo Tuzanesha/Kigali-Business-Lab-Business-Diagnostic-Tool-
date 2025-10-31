@@ -30,6 +30,7 @@ from .views import (
     ActionItemViewSet,
     TeamMemberViewSet,
     AssessmentSessionDeleteView,
+    ResendVerificationEmail,
 )
 
 router = DefaultRouter()
@@ -76,6 +77,9 @@ urlpatterns = [
     
     # Assessment sessions endpoints
     path('assessment-sessions/<int:pk>/', AssessmentSessionDeleteView.as_view(), name='api-assessment-session-delete'),
+    
+    # Resend verification email
+    path('auth/resend-verification-email/', ResendVerificationEmail.as_view(), name='resend-verification-email'),
     
     # Web routes have been removed as they're now handled by the frontend
 ]

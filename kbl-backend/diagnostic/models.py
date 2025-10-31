@@ -125,10 +125,14 @@ class EmailOTP(TimeStampedModel):
     user = models.ForeignKey(User, related_name='email_otps', on_delete=models.CASCADE)
     code = models.CharField(max_length=64)
     expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
     is_verified = models.BooleanField(default=False)
-
+    
+    class Meta:
+        ordering = ['-created_at']
+        
     def __str__(self) -> str:
-        return f"OTP for {self.user.email} (verified={self.is_verified})"
+        return f"OTP for {self.user.email} (used={self.is_used}, verified={self.is_verified})"
 
 
 class PhoneOTP(TimeStampedModel):

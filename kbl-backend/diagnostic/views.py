@@ -448,28 +448,96 @@ class RegisterView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        full_name = request.data.get('full_name', '')
-        email = (request.data.get('email') or '').strip().lower()
-        password = request.data.get('password')
-        phone = request.data.get('phone', '').strip()
-        if not email or not password:
-            return Response({"detail": "email and password are required"}, status=400)
+        logger = logging.getLogger(__name__)
+        logger.info(f"Registration request received. Data: {request.data}")
         
-        # Check for existing user by both username and email fields
-        User = get_user_model()
-        if User.objects.filter(email=email).exists():
-            return Response({"detail": "This email is already registered."}, status=400)
-        
-        first_name = full_name.split(' ')[0] if full_name else ''
-        last_name = ' '.join(full_name.split(' ')[1:]) if ' ' in full_name else ''
-        user = User.objects.create_user(email=email, password=password, first_name=first_name, last_name=last_name, username=email, phone=phone)
-        # Send verification email with link (respect proxy/public URL)
         try:
-            base = compute_public_base_url(request)
-            send_verification_email(request, user, base)
-        except Exception:
-            logging.exception('Failed to send verification email')
-        return Response({"id": user.id, "email": user.email, "detail": "Account created. Please check your email to verify your account."}, status=201)
+            full_name = request.data.get('full_name', '')
+            email = (request.data.get('email') or '').strip().lower()
+            password = request.data.get('password')
+            phone = request.data.get('phone', '').strip()
+            
+            logger.debug(f"Processing registration for email: {email}")
+            
+            # Validate required fields
+            if not email or not password:
+                error_msg = "Email and password are required"
+                logger.warning(f"Validation failed: {error_msg}")
+                return Response({"detail": error_msg}, status=400)
+            
+            # Validate email format
+            try:
+                from django.core.validators import validate_email
+                validate_email(email)
+            except ValidationError as e:
+                error_msg = f"Invalid email format: {str(e)}"
+                logger.warning(error_msg)
+                return Response({"detail": error_msg}, status=400)
+            
+            # Check for existing user
+            User = get_user_model()
+            if User.objects.filter(email=email).exists():
+                error_msg = f"Email {email} is already registered."
+                logger.warning(error_msg)
+                return Response({"detail": error_msg}, status=400)
+            
+            # Create user
+            first_name = full_name.split(' ')[0] if full_name else ''
+            last_name = ' '.join(full_name.split(' ')[1:]) if ' ' in full_name else ''
+            
+            logger.debug(f"Creating user: email={email}, first_name={first_name}, last_name={last_name}")
+            
+            user = User.objects.create_user(
+                email=email, 
+                password=password, 
+                first_name=first_name, 
+                last_name=last_name, 
+                username=email, 
+                phone=phone
+            )
+            
+            logger.info(f"User {user.id} created successfully")
+            
+            # Send verification email
+            try:
+                base_url = compute_public_base_url(request)
+                logger.info(f"Sending verification email to {email} with base URL: {base_url}")
+                
+                # Use the enhanced send_verification_email function
+                email_sent = send_verification_email(request, user, base_url)
+                
+                response_data = {
+                    "id": user.id,
+                    "email": user.email,
+                    "detail": "Registration successful. Please check your email to verify your account.",
+                    "email_sent": email_sent
+                }
+                
+                if not email_sent:
+                    logger.error(f"Failed to send verification email to {email}")
+                    response_data["warning"] = "We couldn't send a verification email. Please try logging in to request a new verification email."
+                else:
+                    logger.info(f"Verification email sent to {email}")
+                
+                return Response(response_data, status=201)
+                
+            except Exception as e:
+                logger.error(f"Error during email sending for {email}: {str(e)}", exc_info=True)
+                # Still return success but indicate email wasn't sent
+                return Response({
+                    "id": user.id,
+                    "email": user.email,
+                    "detail": "Registration successful, but there was an issue sending the verification email.",
+                    "warning": "Please try logging in to request a new verification email.",
+                    "email_sent": False
+                }, status=201)
+                
+        except Exception as e:
+            logger.error(f"Unexpected error during registration: {str(e)}", exc_info=True)
+            return Response({
+                "detail": "An error occurred during registration. Please try again.",
+                "error": str(e)
+            }, status=500)
 
 
 class ProfileView(APIView):
@@ -514,6 +582,7 @@ class ProfileView(APIView):
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from rest_framework.parsers import MultiPartParser, FormParser
+from django.core.exceptions import ValidationError
 
 
 class AvatarUploadView(APIView):
@@ -1086,6 +1155,36 @@ class EnterpriseReportView(APIView):
         })
 
 # API Views Only - Template views have been removed as they're now handled by the frontend
+
+class ResendVerificationEmail(APIView):
+    permission_classes = [permissions.AllowAny]
+    
+    def post(self, request):
+        email = request.data.get('email')
+        if not email:
+            return Response({"detail": "Email is required"}, status=400)
+            
+        User = get_user_model()
+        try:
+            user = User.objects.get(email__iexact=email)
+            
+            # Check if already verified
+            from .models import EmailOTP
+            if EmailOTP.objects.filter(user=user, is_verified=True).exists():
+                return Response({"detail": "Email is already verified"}, status=400)
+                
+            # Resend verification email
+            base = compute_public_base_url(request)
+            email_sent = send_verification_email(request, user, base)
+            
+            if email_sent:
+                return Response({"detail": "Verification email has been resent. Please check your inbox."})
+            else:
+                return Response({"detail": "Failed to send verification email. Please try again later."}, status=500)
+                
+        except User.DoesNotExist:
+            return Response({"detail": "No account found with this email"}, status=404)
+
 
 from django.shortcuts import render
 

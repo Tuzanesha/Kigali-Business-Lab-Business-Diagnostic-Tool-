@@ -4,6 +4,15 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 import os
 import logging
+from django.core.mail import send_mail, EmailMultiAlternatives, get_connection
+from django.template.loader import render_to_string
+from django.utils import timezone
+from datetime import timedelta
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
+from django.conf import settings
+from .models import EmailOTP
+import logging
 import re
 import requests
 
@@ -157,49 +166,149 @@ def send_sms_vonage(phone: str, text: str):
 
 
 
-def send_verification_email(request, user, base_url: str) -> None:
+def send_verification_email(request, user, base_url: str) -> bool:
     """
     Create/refresh an EmailOTP and send an HTML email with a verification button.
+    Returns True if email was sent successfully, False otherwise.
     """
-    # Create a fresh OTP valid for 24 hours
-    code = f"{os.urandom(16).hex()}"
-    expires = timezone.now() + timedelta(hours=24)
-    EmailOTP.objects.create(user=user, code=code, expires_at=expires)
+    logger = logging.getLogger(__name__)
+    logger.info(f"Attempting to send verification email to {user.email}")
+    
+    try:
+        # Create a fresh OTP valid for 24 hours
+        code = f"{os.urandom(16).hex()}"
+        expires = timezone.now() + timedelta(hours=24)
+        
+        logger.debug(f"Generated OTP code: {code}")
+        
+        # Invalidate any existing OTPs for this user
+        updated = EmailOTP.objects.filter(user=user).update(is_used=True)
+        logger.debug(f"Invalidated {updated} existing OTPs for user {user.email}")
+        
+        # Create new OTP
+        otp = EmailOTP.objects.create(
+            user=user, 
+            code=code, 
+            expires_at=expires,
+            is_used=False,
+            is_verified=False
+        )
+        logger.debug(f"Created new OTP with ID: {otp.id}, expires at: {expires}")
 
-    uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
-    verify_url = f"{base_url.rstrip('/')}/api/auth/verify-email/?uid={uidb64}&code={code}"
+        uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
+        verify_url = f"{base_url.rstrip('/')}/api/auth/verify-email/?uid={uidb64}&code={code}"
+        logger.debug(f"Generated verification URL: {verify_url}")
 
-    context = {
-        'user': user,
-        'brand': 'Kigali Business Lab',
-        'verify_url': verify_url,
-    }
+        context = {
+            'user': user,
+            'brand': 'Kigali Business Lab',
+            'verify_url': verify_url,
+        }
 
-    subject = 'Verify your email'
-    html_body = render_to_string('email/verify_email.html', context)
-    text_body = (
-        f"Welcome to {context['brand']}!\n\n"
-        "Please verify your email by opening the following link:\n"
-        f"{verify_url}\n\n"
-        "This link will be valid for a limited time."
-    )
+        subject = 'Verify your email address for Kigali Business Lab'
+        
+        # Ensure the email template exists
+        template_path = 'emails/verify_email.html'
+        logger.debug(f"Using email template: {template_path}")
+        
+        # Render HTML and plain text versions
+        try:
+            html_body = render_to_string(template_path, context)
+            logger.debug("Successfully rendered HTML email template")
+        except Exception as e:
+            logger.error(f"Failed to render email template: {str(e)}", exc_info=True)
+            return False
+            
+        text_body = (
+            f"Welcome to {context['brand']}!\n\n"
+            "Please verify your email by opening the following link:\n"
+            f"{verify_url}\n\n"
+            "This link will be valid for 24 hours.\n\n"
+            "If you didn't create an account, you can safely ignore this email."
+        )
 
-    msg = EmailMultiAlternatives(subject, text_body, to=[user.email])
-    msg.attach_alternative(html_body, 'text/html')
-    msg.send(fail_silently=False)
+        # Get email settings
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@kigalibusinesslab.rw')
+        logger.debug(f"Email settings - From: {from_email}, To: {user.email}")
+        logger.debug(f"EMAIL_HOST: {getattr(settings, 'EMAIL_HOST', 'Not set')}")
+        logger.debug(f"EMAIL_PORT: {getattr(settings, 'EMAIL_PORT', 'Not set')}")
+        logger.debug(f"EMAIL_USE_TLS: {getattr(settings, 'EMAIL_USE_TLS', 'Not set')}")
+        
+        try:
+            msg = EmailMultiAlternatives(
+                subject=subject,
+                body=text_body,
+                from_email=from_email,
+                to=[user.email],
+                reply_to=[getattr(settings, 'DEFAULT_REPLY_TO', from_email)]
+            )
+            msg.attach_alternative(html_body, 'text/html')
+            
+            # Log the email details regardless of DEBUG mode
+            logger.info("\n" + "="*80)
+            logger.info(f"Sending email to {user.email}")
+            logger.info(f"Subject: {subject}")
+            logger.info(f"Verification URL: {verify_url}")
+            logger.info("="*80 + "\n")
+            
+            # In development, still try to send the email but log it
+            if settings.DEBUG:
+                logger.info("DEBUG MODE: Attempting to send real email...")
+                
+            # Send the email regardless of DEBUG mode
+            logger.debug("Attempting to connect to SMTP server...")
+            try:
+                connection = get_connection()
+                connection.open()
+                logger.debug("Successfully connected to SMTP server")
+                
+                # Send the email
+                logger.debug("Sending email...")
+                msg.send(fail_silently=False)
+                connection.close()
+                
+                logger.info(f"Successfully sent verification email to {user.email}")
+                return True
+            except Exception as e:
+                logger.error(f"Failed to send email: {str(e)}", exc_info=True)
+                return False
+            
+        except Exception as e:
+            logger.error(f"Failed to send email to {user.email}", exc_info=True)
+            return False
+        
+    except Exception as e:
+        logger.error(f"Unexpected error in send_verification_email: {str(e)}", exc_info=True)
+        return False
 
 
 def compute_public_base_url(request) -> str:
     """Compute a public-facing base URL using headers or env.
     Precedence:
     1) PUBLIC_BASE_URL env var
-    2) X-Forwarded-Proto + X-Forwarded-Host
-    3) request.scheme + request.get_host()
+    2) FRONTEND_URL env var (for local development)
+    3) X-Forwarded-Proto + X-Forwarded-Host
+    4) request.scheme + request.get_host()
+    5) Default to http://localhost:3000 for development
     """
-    env = os.environ.get('PUBLIC_BASE_URL')
-    if env:
-        return env.rstrip('/')
+    # 1. Check PUBLIC_BASE_URL environment variable
+    public_url = os.environ.get('PUBLIC_BASE_URL')
+    if public_url:
+        return public_url.rstrip('/')
+        
+    # 2. Check FRONTEND_URL environment variable (for local development)
+    frontend_url = os.environ.get('FRONTEND_URL')
+    if frontend_url:
+        return frontend_url.rstrip('/')
+    
+    # 3. Try to get from headers
     proto = request.META.get('HTTP_X_FORWARDED_PROTO') or ('https' if request.is_secure() else 'http')
     host = request.META.get('HTTP_X_FORWARDED_HOST') or request.get_host()
+    
+    # 4. If we're running in development mode, default to localhost:3000 (frontend)
+    if settings.DEBUG and (host.startswith('localhost:') or host.startswith('127.0.0.1:')):
+        return 'http://localhost:3000'
+    
+    # 5. Fallback to the computed proto+host
     return f"{proto}://{host}".rstrip('/')
 

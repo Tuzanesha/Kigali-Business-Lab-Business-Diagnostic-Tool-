@@ -1,0 +1,347 @@
+INFO 2025-10-31 11:36:38,518 services Attempting to send verification email to ishimwechloee@gmail.com
+INFO 2025-10-31 11:36:38,518 services Attempting to send verification email to ishimwechloee@gmail.com
+DEBUG 2025-10-31 11:36:38,518 services Generated OTP code: f3c366bace3359a77c4788c051d55681
+DEBUG 2025-10-31 11:36:38,518 services Generated OTP code: f3c366bace3359a77c4788c051d55681
+ERROR 2025-10-31 11:36:38,519 services Unexpected error in send_verification_email: EmailOTP has no field named 'is_used'
+Traceback (most recent call last):
+  File "/root/.local/lib/python3.13/site-packages/django/db/models/options.py", line 683, in get_field
+    return self.fields_map[field_name]
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^
+KeyError: 'is_used'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/app/diagnostic/services.py", line 185, in send_verification_email
+    updated = EmailOTP.objects.filter(user=user).update(is_used=True)
+  File "/root/.local/lib/python3.13/site-packages/django/db/models/query.py", line 1235, in update
+    query.add_update_values(kwargs)
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^
+  File "/root/.local/lib/python3.13/site-packages/django/db/models/sql/subqueries.py", line 88, in add_update_values
+    field = self.get_meta().get_field(name)
+  File "/root/.local/lib/python3.13/site-packages/django/db/models/options.py", line 685, in get_field
+    raise FieldDoesNotExist(
+        "%s has no field named '%s'" % (self.object_name, field_name)
+    )
+django.core.exceptions.FieldDoesNotExist: EmailOTP has no field named 'is_used'
+ERROR 2025-10-31 11:36:38,519 services Unexpected error in send_verification_email: EmailOTP has no field named 'is_used'
+Traceback (most recent call last):
+  File "/root/.local/lib/python3.13/site-packages/django/db/models/options.py", line 683, in get_field
+    return self.fields_map[field_name]
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^
+KeyError: 'is_used'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/app/diagnostic/services.py", line 185, in send_verification_email
+    updated = EmailOTP.objects.filter(user=user).update(is_used=True)
+  File "/root/.local/lib/python3.13/site-packages/django/db/models/query.py", line 1235, in update
+    query.add_update_values(kwargs)
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^
+  File "/root/.local/lib/python3.13/site-packages/django/db/models/sql/subqueries.py", line 88, in add_update_values
+    field = self.get_meta().get_field(name)
+  File "/root/.local/lib/python3.13/site-packages/django/db/models/options.py", line 685, in get_field
+    raise FieldDoesNotExist(
+        "%s has no field named '%s'" % (self.object_name, field_name)
+    )
+django.core.exceptions.FieldDoesNotExist: EmailOTP has no field named 'is_used'
+WARNING 2025-10-31 11:36:38,526 log Bad Request: /api/auth/login/
+INFO 2025-10-31 11:38:40,736 services Attempting to send verification email to ishimwechloee@gmail.com
+INFO 2025-10-31 11:38:40,736 services Attempting to send verification email to ishimwechloee@gmail.com
+DEBUG 2025-10-31 11:38:40,737 services Generated OTP code: 36eb84982d95696c95fd3c249ad355b7
+DEBUG 2025-10-31 11:38:40,737 services Generated OTP code: 36eb84982d95696c95fd3c249ad355b7
+ERROR 2025-10-31 11:38:40,737 services Unexpected error in send_verification_email: EmailOTP has no field named 'is_used'
+Traceback (most recent call last):
+  File "/root/.local/lib/python3.13/site-packages/django/db/models/options.py", line 683, in get_field
+    return self.fields_map[field_name]
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^
+KeyError: 'is_used'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/app/diagnostic/services.py", line 185, in send_verification_email
+    updated = EmailOTP.objects.filter(user=user).update(is_used=True)
+  File "/root/.local/lib/python3.13/site-packages/django/db/models/query.py", line 1235, in update
+    query.add_update_values(kwargs)
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^
+  File "/root/.local/lib/python3.13/site-packages/django/db/models/sql/subqueries.py", line 88, in add_update_values
+    field = self.get_meta().get_field(name)
+  File "/root/.local/lib/python3.13/site-packages/django/db/models/options.py", line 685, in get_field
+    raise FieldDoesNotExist(
+        "%s has no field named '%s'" % (self.object_name, field_name)
+    )
+django.core.exceptions.FieldDoesNotExist: EmailOTP has no field named 'is_used'
+ERROR 2025-10-31 11:38:40,737 services Unexpected error in send_verification_email: EmailOTP has no field named 'is_used'
+Traceback (most recent call last):
+  File "/root/.local/lib/python3.13/site-packages/django/db/models/options.py", line 683, in get_field
+    return self.fields_map[field_name]
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^
+KeyError: 'is_used'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/app/diagnostic/services.py", line 185, in send_verification_email
+    updated = EmailOTP.objects.filter(user=user).update(is_used=True)
+  File "/root/.local/lib/python3.13/site-packages/django/db/models/query.py", line 1235, in update
+    query.add_update_values(kwargs)
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^
+  File "/root/.local/lib/python3.13/site-packages/django/db/models/sql/subqueries.py", line 88, in add_update_values
+    field = self.get_meta().get_field(name)
+  File "/root/.local/lib/python3.13/site-packages/django/db/models/options.py", line 685, in get_field
+    raise FieldDoesNotExist(
+        "%s has no field named '%s'" % (self.object_name, field_name)
+    )
+django.core.exceptions.FieldDoesNotExist: EmailOTP has no field named 'is_used'
+WARNING 2025-10-31 11:38:40,742 log Bad Request: /api/auth/login/
+INFO 2025-10-31 11:47:58,166 views Registration request received. Data: {'full_name': 'John Doe', 'email': 'ishimwechloee@gmail.com', 'password': '12345678', 'phone': '0788518360'}
+INFO 2025-10-31 11:47:58,166 views Registration request received. Data: {'full_name': 'John Doe', 'email': 'ishimwechloee@gmail.com', 'password': '12345678', 'phone': '0788518360'}
+DEBUG 2025-10-31 11:47:58,175 views Processing registration for email: ishimwechloee@gmail.com
+DEBUG 2025-10-31 11:47:58,175 views Processing registration for email: ishimwechloee@gmail.com
+DEBUG 2025-10-31 11:47:58,305 views Creating user: email=ishimwechloee@gmail.com, first_name=John, last_name=Doe
+DEBUG 2025-10-31 11:47:58,305 views Creating user: email=ishimwechloee@gmail.com, first_name=John, last_name=Doe
+INFO 2025-10-31 11:47:58,465 views User 4 created successfully
+INFO 2025-10-31 11:47:58,465 views User 4 created successfully
+DEBUG 2025-10-31 11:47:58,466 views Sending verification email to ishimwechloee@gmail.com using base URL: http://localhost:8080
+DEBUG 2025-10-31 11:47:58,466 views Sending verification email to ishimwechloee@gmail.com using base URL: http://localhost:8080
+INFO 2025-10-31 11:47:58,466 services Attempting to send verification email to ishimwechloee@gmail.com
+INFO 2025-10-31 11:47:58,466 services Attempting to send verification email to ishimwechloee@gmail.com
+DEBUG 2025-10-31 11:47:58,467 services Generated OTP code: 6a94fedf8574cd3e766d9f1be2a46330
+DEBUG 2025-10-31 11:47:58,467 services Generated OTP code: 6a94fedf8574cd3e766d9f1be2a46330
+ERROR 2025-10-31 11:47:58,468 services Unexpected error in send_verification_email: EmailOTP has no field named 'is_used'
+Traceback (most recent call last):
+  File "/root/.local/lib/python3.13/site-packages/django/db/models/options.py", line 683, in get_field
+    return self.fields_map[field_name]
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^
+KeyError: 'is_used'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/app/diagnostic/services.py", line 185, in send_verification_email
+    updated = EmailOTP.objects.filter(user=user).update(is_used=True)
+  File "/root/.local/lib/python3.13/site-packages/django/db/models/query.py", line 1235, in update
+    query.add_update_values(kwargs)
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^
+  File "/root/.local/lib/python3.13/site-packages/django/db/models/sql/subqueries.py", line 88, in add_update_values
+    field = self.get_meta().get_field(name)
+  File "/root/.local/lib/python3.13/site-packages/django/db/models/options.py", line 685, in get_field
+    raise FieldDoesNotExist(
+        "%s has no field named '%s'" % (self.object_name, field_name)
+    )
+django.core.exceptions.FieldDoesNotExist: EmailOTP has no field named 'is_used'
+ERROR 2025-10-31 11:47:58,468 services Unexpected error in send_verification_email: EmailOTP has no field named 'is_used'
+Traceback (most recent call last):
+  File "/root/.local/lib/python3.13/site-packages/django/db/models/options.py", line 683, in get_field
+    return self.fields_map[field_name]
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^
+KeyError: 'is_used'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/app/diagnostic/services.py", line 185, in send_verification_email
+    updated = EmailOTP.objects.filter(user=user).update(is_used=True)
+  File "/root/.local/lib/python3.13/site-packages/django/db/models/query.py", line 1235, in update
+    query.add_update_values(kwargs)
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^
+  File "/root/.local/lib/python3.13/site-packages/django/db/models/sql/subqueries.py", line 88, in add_update_values
+    field = self.get_meta().get_field(name)
+  File "/root/.local/lib/python3.13/site-packages/django/db/models/options.py", line 685, in get_field
+    raise FieldDoesNotExist(
+        "%s has no field named '%s'" % (self.object_name, field_name)
+    )
+django.core.exceptions.FieldDoesNotExist: EmailOTP has no field named 'is_used'
+WARNING 2025-10-31 11:47:58,480 views Failed to send verification email to ishimwechloee@gmail.com
+WARNING 2025-10-31 11:47:58,480 views Failed to send verification email to ishimwechloee@gmail.com
+INFO 2025-10-31 12:00:31,656 views Registration request received. Data: {'full_name': 'Ishimwe Chloe', 'email': 'ishimwechloee@gmail.com', 'password': '12345678', 'phone': '0787687607'}
+INFO 2025-10-31 12:00:31,656 views Registration request received. Data: {'full_name': 'Ishimwe Chloe', 'email': 'ishimwechloee@gmail.com', 'password': '12345678', 'phone': '0787687607'}
+DEBUG 2025-10-31 12:00:31,658 views Processing registration for email: ishimwechloee@gmail.com
+DEBUG 2025-10-31 12:00:31,658 views Processing registration for email: ishimwechloee@gmail.com
+DEBUG 2025-10-31 12:00:31,700 views Creating user: email=ishimwechloee@gmail.com, first_name=Ishimwe, last_name=Chloe
+DEBUG 2025-10-31 12:00:31,700 views Creating user: email=ishimwechloee@gmail.com, first_name=Ishimwe, last_name=Chloe
+INFO 2025-10-31 12:00:31,833 views User 1 created successfully
+INFO 2025-10-31 12:00:31,833 views User 1 created successfully
+INFO 2025-10-31 12:00:31,837 views Sending verification email to ishimwechloee@gmail.com with base URL: http://localhost:8080
+INFO 2025-10-31 12:00:31,837 views Sending verification email to ishimwechloee@gmail.com with base URL: http://localhost:8080
+INFO 2025-10-31 12:00:31,838 services Attempting to send verification email to ishimwechloee@gmail.com
+INFO 2025-10-31 12:00:31,838 services Attempting to send verification email to ishimwechloee@gmail.com
+DEBUG 2025-10-31 12:00:31,838 services Generated OTP code: 438444b5c196cc32ed67893951acbf9b
+DEBUG 2025-10-31 12:00:31,838 services Generated OTP code: 438444b5c196cc32ed67893951acbf9b
+DEBUG 2025-10-31 12:00:31,840 services Invalidated 0 existing OTPs for user ishimwechloee@gmail.com
+DEBUG 2025-10-31 12:00:31,840 services Invalidated 0 existing OTPs for user ishimwechloee@gmail.com
+DEBUG 2025-10-31 12:00:31,842 services Created new OTP with ID: 1, expires at: 2025-11-01 12:00:31.838587+00:00
+DEBUG 2025-10-31 12:00:31,842 services Created new OTP with ID: 1, expires at: 2025-11-01 12:00:31.838587+00:00
+DEBUG 2025-10-31 12:00:31,842 services Generated verification URL: http://localhost:8080/api/auth/verify-email/?uid=MQ&code=438444b5c196cc32ed67893951acbf9b
+DEBUG 2025-10-31 12:00:31,842 services Generated verification URL: http://localhost:8080/api/auth/verify-email/?uid=MQ&code=438444b5c196cc32ed67893951acbf9b
+DEBUG 2025-10-31 12:00:31,844 services Using email template: emails/verify_email.html
+DEBUG 2025-10-31 12:00:31,844 services Using email template: emails/verify_email.html
+DEBUG 2025-10-31 12:00:31,854 services Successfully rendered HTML email template
+DEBUG 2025-10-31 12:00:31,854 services Successfully rendered HTML email template
+DEBUG 2025-10-31 12:00:31,854 services Email settings - From: webmaster@localhost, To: ishimwechloee@gmail.com
+DEBUG 2025-10-31 12:00:31,854 services Email settings - From: webmaster@localhost, To: ishimwechloee@gmail.com
+DEBUG 2025-10-31 12:00:31,855 services EMAIL_HOST: localhost
+DEBUG 2025-10-31 12:00:31,855 services EMAIL_HOST: localhost
+DEBUG 2025-10-31 12:00:31,855 services EMAIL_PORT: 25
+DEBUG 2025-10-31 12:00:31,855 services EMAIL_PORT: 25
+DEBUG 2025-10-31 12:00:31,855 services EMAIL_USE_TLS: False
+DEBUG 2025-10-31 12:00:31,855 services EMAIL_USE_TLS: False
+INFO 2025-10-31 12:00:31,855 services 
+================================================================================
+INFO 2025-10-31 12:00:31,855 services 
+================================================================================
+INFO 2025-10-31 12:00:31,856 services DEBUG MODE: Email would be sent to ishimwechloee@gmail.com
+INFO 2025-10-31 12:00:31,856 services DEBUG MODE: Email would be sent to ishimwechloee@gmail.com
+INFO 2025-10-31 12:00:31,856 services Subject: Verify your email address for Kigali Business Lab
+INFO 2025-10-31 12:00:31,856 services Subject: Verify your email address for Kigali Business Lab
+INFO 2025-10-31 12:00:31,856 services Verification URL: http://localhost:8080/api/auth/verify-email/?uid=MQ&code=438444b5c196cc32ed67893951acbf9b
+INFO 2025-10-31 12:00:31,856 services Verification URL: http://localhost:8080/api/auth/verify-email/?uid=MQ&code=438444b5c196cc32ed67893951acbf9b
+INFO 2025-10-31 12:00:31,857 services ================================================================================
+
+INFO 2025-10-31 12:00:31,857 services ================================================================================
+
+INFO 2025-10-31 12:00:31,857 views Verification email sent to ishimwechloee@gmail.com
+INFO 2025-10-31 12:00:31,857 views Verification email sent to ishimwechloee@gmail.com
+INFO 2025-10-31 12:03:46,371 services Attempting to send verification email to ishimwechloee@gmail.com
+INFO 2025-10-31 12:03:46,371 services Attempting to send verification email to ishimwechloee@gmail.com
+DEBUG 2025-10-31 12:03:46,375 services Generated OTP code: 56256af59d3f5a11c9a4c4d2bee65267
+DEBUG 2025-10-31 12:03:46,375 services Generated OTP code: 56256af59d3f5a11c9a4c4d2bee65267
+DEBUG 2025-10-31 12:03:46,381 services Invalidated 0 existing OTPs for user ishimwechloee@gmail.com
+DEBUG 2025-10-31 12:03:46,381 services Invalidated 0 existing OTPs for user ishimwechloee@gmail.com
+DEBUG 2025-10-31 12:03:46,385 services Created new OTP with ID: 2, expires at: 2025-11-01 12:03:46.374996+00:00
+DEBUG 2025-10-31 12:03:46,385 services Created new OTP with ID: 2, expires at: 2025-11-01 12:03:46.374996+00:00
+DEBUG 2025-10-31 12:03:46,385 services Generated verification URL: http://localhost:8080/api/auth/verify-email/?uid=MQ&code=56256af59d3f5a11c9a4c4d2bee65267
+DEBUG 2025-10-31 12:03:46,385 services Generated verification URL: http://localhost:8080/api/auth/verify-email/?uid=MQ&code=56256af59d3f5a11c9a4c4d2bee65267
+DEBUG 2025-10-31 12:03:46,385 services Using email template: emails/verify_email.html
+DEBUG 2025-10-31 12:03:46,385 services Using email template: emails/verify_email.html
+DEBUG 2025-10-31 12:03:46,403 services Successfully rendered HTML email template
+DEBUG 2025-10-31 12:03:46,403 services Successfully rendered HTML email template
+DEBUG 2025-10-31 12:03:46,403 services Email settings - From: webmaster@localhost, To: ishimwechloee@gmail.com
+DEBUG 2025-10-31 12:03:46,403 services Email settings - From: webmaster@localhost, To: ishimwechloee@gmail.com
+DEBUG 2025-10-31 12:03:46,403 services EMAIL_HOST: localhost
+DEBUG 2025-10-31 12:03:46,403 services EMAIL_HOST: localhost
+DEBUG 2025-10-31 12:03:46,404 services EMAIL_PORT: 25
+DEBUG 2025-10-31 12:03:46,404 services EMAIL_PORT: 25
+DEBUG 2025-10-31 12:03:46,404 services EMAIL_USE_TLS: False
+DEBUG 2025-10-31 12:03:46,404 services EMAIL_USE_TLS: False
+INFO 2025-10-31 12:03:46,404 services 
+================================================================================
+INFO 2025-10-31 12:03:46,404 services 
+================================================================================
+INFO 2025-10-31 12:03:46,404 services DEBUG MODE: Email would be sent to ishimwechloee@gmail.com
+INFO 2025-10-31 12:03:46,404 services DEBUG MODE: Email would be sent to ishimwechloee@gmail.com
+INFO 2025-10-31 12:03:46,405 services Subject: Verify your email address for Kigali Business Lab
+INFO 2025-10-31 12:03:46,405 services Subject: Verify your email address for Kigali Business Lab
+INFO 2025-10-31 12:03:46,405 services Verification URL: http://localhost:8080/api/auth/verify-email/?uid=MQ&code=56256af59d3f5a11c9a4c4d2bee65267
+INFO 2025-10-31 12:03:46,405 services Verification URL: http://localhost:8080/api/auth/verify-email/?uid=MQ&code=56256af59d3f5a11c9a4c4d2bee65267
+INFO 2025-10-31 12:03:46,405 services ================================================================================
+
+INFO 2025-10-31 12:03:46,405 services ================================================================================
+
+WARNING 2025-10-31 12:03:46,415 log Bad Request: /api/auth/login/
+INFO 2025-10-31 12:07:25,968 services Attempting to send verification email to ishimwechloee@gmail.com
+INFO 2025-10-31 12:07:25,968 services Attempting to send verification email to ishimwechloee@gmail.com
+DEBUG 2025-10-31 12:07:25,969 services Generated OTP code: 576ae927b328d71eb6c046dba37d4a13
+DEBUG 2025-10-31 12:07:25,969 services Generated OTP code: 576ae927b328d71eb6c046dba37d4a13
+DEBUG 2025-10-31 12:07:25,970 services Invalidated 0 existing OTPs for user ishimwechloee@gmail.com
+DEBUG 2025-10-31 12:07:25,970 services Invalidated 0 existing OTPs for user ishimwechloee@gmail.com
+DEBUG 2025-10-31 12:07:25,971 services Created new OTP with ID: 3, expires at: 2025-11-01 12:07:25.969325+00:00
+DEBUG 2025-10-31 12:07:25,971 services Created new OTP with ID: 3, expires at: 2025-11-01 12:07:25.969325+00:00
+DEBUG 2025-10-31 12:07:25,971 services Generated verification URL: http://localhost:8080/api/auth/verify-email/?uid=MQ&code=576ae927b328d71eb6c046dba37d4a13
+DEBUG 2025-10-31 12:07:25,971 services Generated verification URL: http://localhost:8080/api/auth/verify-email/?uid=MQ&code=576ae927b328d71eb6c046dba37d4a13
+DEBUG 2025-10-31 12:07:25,971 services Using email template: emails/verify_email.html
+DEBUG 2025-10-31 12:07:25,971 services Using email template: emails/verify_email.html
+DEBUG 2025-10-31 12:07:25,982 services Successfully rendered HTML email template
+DEBUG 2025-10-31 12:07:25,982 services Successfully rendered HTML email template
+DEBUG 2025-10-31 12:07:25,982 services Email settings - From: webmaster@localhost, To: ishimwechloee@gmail.com
+DEBUG 2025-10-31 12:07:25,982 services Email settings - From: webmaster@localhost, To: ishimwechloee@gmail.com
+DEBUG 2025-10-31 12:07:25,982 services EMAIL_HOST: localhost
+DEBUG 2025-10-31 12:07:25,982 services EMAIL_HOST: localhost
+DEBUG 2025-10-31 12:07:25,982 services EMAIL_PORT: 25
+DEBUG 2025-10-31 12:07:25,982 services EMAIL_PORT: 25
+DEBUG 2025-10-31 12:07:25,983 services EMAIL_USE_TLS: False
+DEBUG 2025-10-31 12:07:25,983 services EMAIL_USE_TLS: False
+INFO 2025-10-31 12:07:25,983 services 
+================================================================================
+INFO 2025-10-31 12:07:25,983 services 
+================================================================================
+INFO 2025-10-31 12:07:25,983 services Sending email to ishimwechloee@gmail.com
+INFO 2025-10-31 12:07:25,983 services Sending email to ishimwechloee@gmail.com
+INFO 2025-10-31 12:07:25,984 services Subject: Verify your email address for Kigali Business Lab
+INFO 2025-10-31 12:07:25,984 services Subject: Verify your email address for Kigali Business Lab
+INFO 2025-10-31 12:07:25,984 services Verification URL: http://localhost:8080/api/auth/verify-email/?uid=MQ&code=576ae927b328d71eb6c046dba37d4a13
+INFO 2025-10-31 12:07:25,984 services Verification URL: http://localhost:8080/api/auth/verify-email/?uid=MQ&code=576ae927b328d71eb6c046dba37d4a13
+INFO 2025-10-31 12:07:25,984 services ================================================================================
+
+INFO 2025-10-31 12:07:25,984 services ================================================================================
+
+INFO 2025-10-31 12:07:25,984 services DEBUG MODE: Attempting to send real email...
+INFO 2025-10-31 12:07:25,984 services DEBUG MODE: Attempting to send real email...
+DEBUG 2025-10-31 12:07:25,984 services Attempting to connect to SMTP server...
+DEBUG 2025-10-31 12:07:25,984 services Attempting to connect to SMTP server...
+DEBUG 2025-10-31 12:07:25,986 services Successfully connected to SMTP server
+DEBUG 2025-10-31 12:07:25,986 services Successfully connected to SMTP server
+DEBUG 2025-10-31 12:07:25,986 services Sending email...
+DEBUG 2025-10-31 12:07:25,986 services Sending email...
+INFO 2025-10-31 12:07:25,988 services Successfully sent verification email to ishimwechloee@gmail.com
+INFO 2025-10-31 12:07:25,988 services Successfully sent verification email to ishimwechloee@gmail.com
+WARNING 2025-10-31 12:07:25,990 log Bad Request: /api/auth/login/
+INFO 2025-10-31 12:13:06,030 services Attempting to send verification email to ishimwechloee@gmail.com
+INFO 2025-10-31 12:13:06,030 services Attempting to send verification email to ishimwechloee@gmail.com
+DEBUG 2025-10-31 12:13:06,032 services Generated OTP code: 3514c8c499705f4b1fd094cadfaa5aca
+DEBUG 2025-10-31 12:13:06,032 services Generated OTP code: 3514c8c499705f4b1fd094cadfaa5aca
+DEBUG 2025-10-31 12:13:06,033 services Invalidated 0 existing OTPs for user ishimwechloee@gmail.com
+DEBUG 2025-10-31 12:13:06,033 services Invalidated 0 existing OTPs for user ishimwechloee@gmail.com
+DEBUG 2025-10-31 12:13:06,034 services Created new OTP with ID: 4, expires at: 2025-11-01 12:13:06.032475+00:00
+DEBUG 2025-10-31 12:13:06,034 services Created new OTP with ID: 4, expires at: 2025-11-01 12:13:06.032475+00:00
+DEBUG 2025-10-31 12:13:06,034 services Generated verification URL: http://localhost:8080/api/auth/verify-email/?uid=MQ&code=3514c8c499705f4b1fd094cadfaa5aca
+DEBUG 2025-10-31 12:13:06,034 services Generated verification URL: http://localhost:8080/api/auth/verify-email/?uid=MQ&code=3514c8c499705f4b1fd094cadfaa5aca
+DEBUG 2025-10-31 12:13:06,035 services Using email template: emails/verify_email.html
+DEBUG 2025-10-31 12:13:06,035 services Using email template: emails/verify_email.html
+DEBUG 2025-10-31 12:13:06,043 services Successfully rendered HTML email template
+DEBUG 2025-10-31 12:13:06,043 services Successfully rendered HTML email template
+DEBUG 2025-10-31 12:13:06,043 services Email settings - From: karlychloee12@gmail.com, To: ishimwechloee@gmail.com
+DEBUG 2025-10-31 12:13:06,043 services Email settings - From: karlychloee12@gmail.com, To: ishimwechloee@gmail.com
+DEBUG 2025-10-31 12:13:06,044 services EMAIL_HOST: smtp.gmail.com
+DEBUG 2025-10-31 12:13:06,044 services EMAIL_HOST: smtp.gmail.com
+DEBUG 2025-10-31 12:13:06,044 services EMAIL_PORT: 587
+DEBUG 2025-10-31 12:13:06,044 services EMAIL_PORT: 587
+DEBUG 2025-10-31 12:13:06,044 services EMAIL_USE_TLS: True
+DEBUG 2025-10-31 12:13:06,044 services EMAIL_USE_TLS: True
+INFO 2025-10-31 12:13:06,045 services 
+================================================================================
+INFO 2025-10-31 12:13:06,045 services 
+================================================================================
+INFO 2025-10-31 12:13:06,046 services Sending email to ishimwechloee@gmail.com
+INFO 2025-10-31 12:13:06,046 services Sending email to ishimwechloee@gmail.com
+INFO 2025-10-31 12:13:06,046 services Subject: Verify your email address for Kigali Business Lab
+INFO 2025-10-31 12:13:06,046 services Subject: Verify your email address for Kigali Business Lab
+INFO 2025-10-31 12:13:06,048 services Verification URL: http://localhost:8080/api/auth/verify-email/?uid=MQ&code=3514c8c499705f4b1fd094cadfaa5aca
+INFO 2025-10-31 12:13:06,048 services Verification URL: http://localhost:8080/api/auth/verify-email/?uid=MQ&code=3514c8c499705f4b1fd094cadfaa5aca
+INFO 2025-10-31 12:13:06,048 services ================================================================================
+
+INFO 2025-10-31 12:13:06,048 services ================================================================================
+
+DEBUG 2025-10-31 12:13:06,048 services Attempting to connect to SMTP server...
+DEBUG 2025-10-31 12:13:06,048 services Attempting to connect to SMTP server...
+DEBUG 2025-10-31 12:13:07,551 services Successfully connected to SMTP server
+DEBUG 2025-10-31 12:13:07,551 services Successfully connected to SMTP server
+DEBUG 2025-10-31 12:13:07,553 services Sending email...
+DEBUG 2025-10-31 12:13:07,553 services Sending email...
+INFO 2025-10-31 12:13:10,342 services Successfully sent verification email to ishimwechloee@gmail.com
+INFO 2025-10-31 12:13:10,342 services Successfully sent verification email to ishimwechloee@gmail.com
+WARNING 2025-10-31 12:13:10,361 log Bad Request: /api/auth/login/
+WARNING 2025-10-31 12:13:29,310 log Not Found: /api/enterprise/profile/
+WARNING 2025-10-31 12:13:29,344 log Not Found: /api/enterprise/profile/
+WARNING 2025-10-31 12:13:39,567 log Not Found: /api/enterprise/profile/
+WARNING 2025-10-31 12:13:39,586 log Not Found: /api/enterprise/profile/
+WARNING 2025-10-31 12:14:03,804 log Not Found: /api/enterprise/profile/
+WARNING 2025-10-31 12:14:03,840 log Not Found: /api/enterprise/profile/
+WARNING 2025-10-31 12:14:06,965 log Not Found: /api/enterprise/profile/
+WARNING 2025-10-31 12:14:06,978 log Not Found: /api/enterprise/profile/
+WARNING 2025-10-31 12:15:08,518 log Not Found: /api/enterprise/profile/
+WARNING 2025-10-31 12:15:08,533 log Not Found: /api/enterprise/profile/
+INFO 2025-10-31 12:15:31,560 views Sent invitation email to karlychloee12@gmail.com for enterprise 1
+INFO 2025-10-31 12:15:31,560 views Sent invitation email to karlychloee12@gmail.com for enterprise 1
