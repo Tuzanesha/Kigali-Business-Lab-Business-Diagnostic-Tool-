@@ -21,20 +21,22 @@ export default function SignUpPage() {
     e.preventDefault();
 
     if (!fullName || !email || !password || !phone) {
-      toast.error('Please fill in all fields.');
+      toast.error('Please fill in all fields.', { duration: 4000 });
       return;
     }
     if (password.length < 8) {
-      toast.error('Password must be at least 8 characters long.');
+      toast.error('Password must be at least 8 characters long.', { duration: 4000 });
       return;
     }
     const id = toast.loading('Creating account...');
     try {
       await apiRegister(fullName, email, password, phone);
-      toast.success('Verification link sent to your email.', { id });
-      router.push('/login');
+      toast.success('Verification link sent to your email.', { id, duration: 3000 });
+      setTimeout(() => {
+        router.push('/login');
+      }, 1500);
     } catch (err: any) {
-      toast.error(err?.message || 'Could not create account.', { id });
+      toast.error(err?.message || 'Could not create account.', { id, duration: 4000 });
     }
   };
 

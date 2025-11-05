@@ -12,9 +12,9 @@
 } */
 
 .page-title {
-  font-family: 'Bebas Neue', sans-serif; 
-  font-size: 2.25rem;
-  color: #0d2c4f;
+  font-family: 'Bebas Kai', sans-serif; 
+  font-size: clamp(1.5rem, 5vw, 2.25rem);
+  color: #012f53;
   margin: 0;
   margin-bottom: 1rem;
 }
@@ -22,19 +22,35 @@
 
 .tabs-nav {
   display: flex;
-  border-bottom: 2px solid #e2e8f0; 
+  border-bottom: 2px solid #e2e8f0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.tabs-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .tab-button {
-  padding: 0.75rem 1.25rem;
+  padding: 0.75rem 1rem;
   border: none;
   background-color: transparent;
   color: #64748b; 
-  font-size: 1rem;
+  font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
   position: relative;
   transition: color 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+@media (min-width: 640px) {
+  .tab-button {
+    padding: 0.75rem 1.25rem;
+    font-size: 1rem;
+  }
 }
 
 .tab-button:hover {
@@ -126,7 +142,8 @@
 }
 
 .form-input {
-  width: 95%;
+  width: 100%;
+  max-width: 100%;
   height: 44px; 
   padding: 0 0.75rem;
   border: 1px solid #cbd5e1;
@@ -134,6 +151,7 @@
   font-size: 1rem;
   background-color: #f8fafc; 
   transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
 }
 
 .form-input:focus {
@@ -426,11 +444,19 @@
 
 .team-member-item {
   display: grid;
-  grid-template-columns: 2fr 1fr 2fr 1fr; 
-  gap: 1rem;
-  align-items: center;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  align-items: flex-start;
   padding: 1rem 0;
   border-bottom: 1px solid #e2e8f0;
+}
+
+@media (min-width: 768px) {
+  .team-member-item {
+    grid-template-columns: 2fr 1fr 2fr 1fr;
+    gap: 1rem;
+    align-items: center;
+  }
 }
 .team-member-item:first-of-type {
   border-top: 1px solid #e2e8f0;

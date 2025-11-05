@@ -24,28 +24,35 @@ export default function ResetPasswordPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.newPassword !== formData.confirmPassword) {
-      
-      toast.error("Passwords do not match!");
+      toast.error("Passwords do not match!", { duration: 4000 });
       return;
     }
     if (formData.newPassword.length < 8) {
-      toast.error("Password must be at least 8 characters long.");
+      toast.error("Password must be at least 8 characters long.", { duration: 4000 });
       return;
     }
     const uid = params.get('uid') || '';
     const token = params.get('token') || '';
     if (!uid || !token) {
-      toast.error('Invalid or missing reset link.');
+      toast.error('Invalid or missing reset link.', { duration: 4000 });
       return;
     }
     const promise = (async () => {
       await apiPasswordResetConfirm(uid, token, formData.newPassword);
-      setTimeout(() => router.push('/login'), 500);
+      setTimeout(() => router.push('/login'), 1500);
     })();
     toast.promise(promise, {
       loading: 'Updating password...',
-      success: 'Password has been updated!',
+      success: 'Password has been updated! Redirecting...',
       error: 'Could not update password.',
+    }, {
+      duration: 3000,
+      success: {
+        duration: 3000,
+      },
+      error: {
+        duration: 4000,
+      },
     });
   };
 

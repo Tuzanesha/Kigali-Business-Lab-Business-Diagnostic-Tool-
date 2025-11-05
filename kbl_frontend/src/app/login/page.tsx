@@ -29,7 +29,7 @@ export default function LoginPage() {
     e.preventDefault();
 
     if (!email || !password) {
-      toast.error('Please enter both email and password.');
+      toast.error('Please enter both email and password.', { duration: 4000 });
       return;
     }
 

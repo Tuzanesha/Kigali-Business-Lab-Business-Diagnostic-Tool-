@@ -54,9 +54,9 @@ export default function ActionPlanPage() {
           inprogress: (data?.inprogress || []) as Task[],
           completed: (data?.completed || []) as Task[],
         });
-        toast.success('Action plan loaded', { id });
+        toast.success('Action plan loaded', { id, duration: 2000 });
       } catch (e:any) {
-        toast.error(e?.message || 'Failed to load action plan', { id });
+        toast.error(e?.message || 'Failed to load action plan', { id, duration: 4000 });
       }
     };
     load();
@@ -100,10 +100,10 @@ export default function ActionPlanPage() {
         await apiActionBulkMove(access, items);
       }
       if (sourceColId !== destColId) {
-        toast.success(`Moved "${removed.title}" to ${columnTitles[destColId] as 'TO DO'|'IN PROGRESS'|'COMPLETED'}`);
+        toast.success(`Moved "${removed.title}" to ${columnTitles[destColId] as 'TO DO'|'IN PROGRESS'|'COMPLETED'}`, { duration: 2500 });
       }
     } catch (e:any) {
-      toast.error(e?.message || 'Failed to save new order');
+      toast.error(e?.message || 'Failed to save new order', { duration: 4000 });
     }
   };
 

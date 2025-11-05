@@ -91,6 +91,14 @@ const AssessmentWizard = ({ enterpriseId, onComplete, onExit }: { enterpriseId: 
         loading: 'Finalizing assessment...',
         success: 'Report generated successfully!',
         error: 'Could not complete assessment.'
+      }, {
+        duration: 3000,
+        success: {
+          duration: 2500,
+        },
+        error: {
+          duration: 4000,
+        },
       }).then(() => onComplete());
     }
   };
@@ -135,10 +143,10 @@ const AssessmentReport = ({ enterpriseId, onRetake }: AssessmentReportProps) => 
           .slice(0, 10);
         setFocus(items);
         setLoading(false);
-        toast.success('Report loaded', { id: tid, duration: 1500 });
+        toast.success('Report loaded', { id: tid, duration: 2000 });
       } catch (e: any) {
         setLoading(false);
-        toast.error(e?.message || 'Failed to load report', { id: 'report-load', duration: 2500 });
+        toast.error(e?.message || 'Failed to load report', { id: 'report-load', duration: 4000 });
       }
     };
     load();

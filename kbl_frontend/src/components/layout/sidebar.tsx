@@ -39,7 +39,7 @@ export function Sidebar({ isOpen }: SidebarProps) {
 
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
-    toast.success('You have been logged out.');
+          toast.success('You have been logged out.', { duration: 2500 });
     router.push('/login');
   };
 

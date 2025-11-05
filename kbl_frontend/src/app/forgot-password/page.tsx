@@ -16,7 +16,7 @@ export default function ForgotPasswordPage() {
     event.preventDefault();
 
     if (!email) {
-      toast.error('Please enter an email address.');
+      toast.error('Please enter an email address.', { duration: 4000 });
       return;
     }
 
@@ -29,6 +29,14 @@ export default function ForgotPasswordPage() {
       loading: 'Sending reset link...',
       success: 'If an account exists, a reset link has been sent.',
       error: 'Could not send reset link.',
+    }, {
+      duration: 3000,
+      success: {
+        duration: 3000,
+      },
+      error: {
+        duration: 4000,
+      },
     });
   };
 

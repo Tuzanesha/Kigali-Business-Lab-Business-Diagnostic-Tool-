@@ -6,14 +6,24 @@
 
 .main-content {
   flex-grow: 1; /* Takes up remaining space */
-  padding: 3rem;
+  padding: 1.5rem;
   transition: margin-left 0.3s ease-in-out;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* On desktop, create space for the sidebar */
 @media (min-width: 768px) {
   .main-content {
     margin-left: 200px; /* This must match your sidebar's width */
+    padding: 2rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .main-content {
+    padding: 3rem;
   }
 }
 

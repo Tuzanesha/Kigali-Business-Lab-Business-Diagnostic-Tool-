@@ -74,13 +74,17 @@ export default function AssessmentsPage() {
       
       setAssessments(items);
       toast.dismiss(id);
+      // Show a subtle success message only if there are assessments
+      if (items.length > 0) {
+        toast.success(`Loaded ${items.length} assessment${items.length === 1 ? '' : 's'}`, { duration: 2000 });
+      }
     } catch (e: any) {
       console.error('Error loading assessments:', {
         message: e.message,
         stack: e.stack,
         response: e.response
       });
-      toast.error(e?.message || 'Could not load assessments.', { id });
+      toast.error(e?.message || 'Could not load assessments.', { id, duration: 4000 });
     }
   };
 
@@ -107,14 +111,14 @@ export default function AssessmentsPage() {
           return updated;
         });
         
-        toast.success('Assessment session deleted successfully', { id });
+        toast.success('Assessment session deleted successfully', { id, duration: 2500 });
       } catch (error: any) {
         console.error('Error deleting assessment session:', {
           message: error.message,
           stack: error.stack,
           response: error.response
         });
-        toast.error(error.message || 'Failed to delete assessment session', { id });
+        toast.error(error.message || 'Failed to delete assessment session', { id, duration: 4000 });
       }
     }
   };
