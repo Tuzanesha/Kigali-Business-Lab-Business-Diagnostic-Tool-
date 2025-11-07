@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.auth import get_user_model
-from django.contrib.contenttypes.models import ContentType
+from django.conf import settings
 
 
 User = get_user_model()
@@ -147,46 +147,7 @@ class PhoneOTP(TimeStampedModel):
         return f"Phone OTP for {self.user_id}:{self.phone} (verified={self.is_verified})"
 
 
-class NotificationPreference(TimeStampedModel):
-    user = models.OneToOneField(User, related_name='notification_prefs', on_delete=models.CASCADE)
-    email_notifications = models.BooleanField(default=True)
-    push_notifications = models.BooleanField(default=False)
-    weekly_reports = models.BooleanField(default=True)
-    marketing_communications = models.BooleanField(default=False)
 
-    def __str__(self) -> str:
-        return f"Notification prefs for {self.user_id}"
-
-
-class Notification(TimeStampedModel):
-    NOTIFICATION_TYPES = [
-        ('info', 'Information'),
-        ('success', 'Success'),
-        ('warning', 'Warning'),
-        ('error', 'Error'),
-        ('assessment', 'Assessment'),
-        ('action_item', 'Action Item'),
-        ('team', 'Team'),
-    ]
-    
-    user = models.ForeignKey(User, related_name='notifications', on_delete=models.CASCADE)
-    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES, default='info')
-    title = models.CharField(max_length=255)
-    message = models.TextField()
-    is_read = models.BooleanField(default=False)
-    related_object_id = models.PositiveIntegerField(null=True, blank=True)
-    related_content_type = models.ForeignKey(
-        ContentType,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True
-    )
-    
-    class Meta:
-        ordering = ['-created_at']
-    
-    def __str__(self):
-        return f"{self.get_notification_type_display()}: {self.title}"
 
 
 class ActionItem(TimeStampedModel):
@@ -255,7 +216,42 @@ class TeamMember(TimeStampedModel):
     accepted_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        unique_together = ('enterprise', 'email')
+        db_table = 'team_members'
+        unique_together = [['enterprise', 'email']]
 
     def __str__(self) -> str:
         return f"{self.email} - {self.enterprise_id} ({self.role})"
+
+
+class NotificationPreference(TimeStampedModel):
+    """
+    Model to store user notification preferences.
+    """
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='notification_preferences'
+    )
+    email_notifications = models.BooleanField(
+        default=True,
+        help_text='Enable email notifications for important updates'
+    )
+    push_notifications = models.BooleanField(
+        default=False,
+        help_text='Enable push notifications on your device'
+    )
+    weekly_reports = models.BooleanField(
+        default=True,
+        help_text='Receive weekly summary reports'
+    )
+    marketing_communications = models.BooleanField(
+        default=False,
+        help_text='Receive marketing and promotional emails'
+    )
+
+    class Meta:
+        verbose_name = 'Notification Preference'
+        verbose_name_plural = 'Notification Preferences'
+
+    def __str__(self):
+        return f"{self.user.email}'s notification preferences"

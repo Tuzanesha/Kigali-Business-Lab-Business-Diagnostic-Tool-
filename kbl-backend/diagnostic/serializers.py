@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Category, Question, Enterprise, QuestionResponse, ScoreSummary, Attachment, EmailOTP, ActionItem, TeamMember
+from .models import Category, Question, Enterprise, QuestionResponse, ScoreSummary, Attachment, EmailOTP, ActionItem, TeamMember, NotificationPreference
 
 
 class CategorySerializer(serializers.ModelSerializer):

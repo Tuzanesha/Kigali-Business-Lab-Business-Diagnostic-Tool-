@@ -1,172 +1,135 @@
-# Kigali Business Lab - Business Diagnostic Tool
+# KBL Business Diagnostic Tool
 
-A comprehensive business diagnostic tool that helps businesses assess and improve their operations. The application consists of a Django REST API backend and a Next.js frontend.
+A business diagnostic platform with Next.js frontend and Django REST API backend.
 
-## Prerequisites
+## 🚀 Features
+- User authentication (JWT)
 
-- Docker (v20.10+) and Docker Compose (v2.0+)
-- Node.js (v18+)
-- Python (v3.9+)
-- PostgreSQL (if running locally without Docker)
+1. **Clone and set up**
+   ```bash
+   git clone <repository-url>
+   cd kbl-business-diagnostic
+   ```
 
-## Project Structure
+2. **Configure environment**
+   - Copy `.env.example` to `.env` in both `kbl-backend` and `kbl_frontend`
+   - Update with your configuration
 
-```
-.
-├── kbl-backend/          # Django REST API backend
-│   ├── config/           # Django project configuration
-│   ├── diagnostic/       # Main app with business logic
-│   ├── docker-compose.yml# Docker Compose configuration
-│   └── requirements.txt  # Python dependencies
-└── kbl_frontend/         # Next.js frontend
-    ├── src/              # Source code
-    └── package.json      # Node.js dependencies
-```
+3. **Run with Docker**
+   ```bash
+   cd kbl-backend
+   docker-compose up -d --build
+   docker-compose exec web python manage.py migrate
+   docker-compose exec web python manage.py createsuperuser
 
-## Getting Started
+   cd kbl_frontend
+   npm run dev
+   ```
 
-### 1. Clone the Repository
+4. **Access** (via Nginx on port 8080)
+   - Main Application: http://localhost:8080
+   - Admin Panel: http://localhost:8080/admin
+   - API Endpoint: http://localhost:8080/api
+   - API Documentation: http://localhost:8080/swagger/
 
+## 🛠 Development
+
+### Backend Development
+
+To work with the backend directly:
+
+1. **Access the API**:
+   - Base URL: `http://localhost:8080/api`
+   - Test endpoints using tools like Postman or curl
+   - Example: `curl http://localhost:8080/api/account/notifications/`
+
+2. **Admin Interface**:
+   - Access at: http://localhost:8080/admin
+   - Use superuser credentials created during setup
+
+3. **API Documentation**:
+   - Interactive Swagger UI: http://localhost:8080/swagger/
+   - ReDoc documentation: http://localhost:8080/redoc/
+
+### Backend Commands
 ```bash
-git clone <repository-url>
-cd kbl-business-diagnostic
+# Run tests
+docker-compose exec web python manage.py test
+
+# Create migrations
+docker-compose exec web python manage.py makemigrations
+
+# Run linter
+docker-compose exec web flake8 .
 ```
 
-### 2. Set Up Environment Variables
-
-#### Backend (.env in kbl-backend/)
-```env
-# Database
-POSTGRES_DB=kbl_backend
-POSTGRES_USER=kbl_user
-POSTGRES_PASSWORD=kblUser1234
-POSTGRES_HOST=db
-POSTGRES_PORT=5432
-
-# Django
-DJANGO_SECRET_KEY=your-secret-key-here
-DJANGO_DEBUG=True
-DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
-
-# Email Configuration (for production)
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_HOST_USER=your-email@gmail.com
-EMAIL_HOST_PASSWORD=your-app-password
-EMAIL_USE_TLS=True
-DEFAULT_FROM_EMAIL=your-email@gmail.com
-
-# Frontend URL (for CORS and email links)
-FRONTEND_URL=http://localhost:3000
-```
-
-#### Frontend (.env.local in kbl_frontend/)
-```env
-NEXT_PUBLIC_API_URL=http://localhost:8000/api
-```
-
-### 3. Run with Docker (Recommended)
-
-```bash
-# Start the application
-docker-compose -f kbl-backend/docker-compose.yml up -d --build
-
-# Run database migrations
-docker-compose -f kbl-backend/docker-compose.yml exec web python manage.py migrate
-
-# Create superuser (admin)
-docker-compose -f kbl-backend/docker-compose.yml exec web python manage.py createsuperuser
-```
-
-### 4. Run Manually (Without Docker)
-
-#### Backend
-```bash
-cd kbl-backend
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py runserver
-```
-
-#### Frontend
+### Frontend
 ```bash
 cd kbl_frontend
 npm install
-npm run dev
+npm run dev  # Development
+npm run build  # Production build
+npm test  # Run tests
 ```
 
-## Accessing the Application
+## 📦 Deployment
 
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:8000/api
-- **Admin Panel**: http://localhost:8000/admin
-- **API Documentation**: http://localhost:8000/swagger/
+### Production Setup
 
-## Development
+1. **Server Requirements**
+   - Ubuntu 20.04/22.04 LTS
+   - Docker & Docker Compose
+   - Nginx
+   - SSL Certificate (Let's Encrypt)
 
-### Backend Commands
+2. **Nginx Config** (`/etc/nginx/sites-available/kbl`)
+   ```nginx
+   server {
+       listen 80;
+       server_name your-domain.com;
+       return 301 https://$host$request_uri;
+   }
 
-```bash
-# Run tests
-python manage.py test
+   server {
+       listen 443 ssl;
+       server_name your-domain.com;
 
-# Create migrations
-python manage.py makemigrations
+       ssl_certificate /path/to/cert.pem;
+       ssl_certificate_key /path/to/privkey.pem;
 
-# Run migrations
-python manage.py migrate
+       location / {
+           proxy_pass http://localhost:3000;
+           proxy_http_version 1.1;
+           proxy_set_header Upgrade $http_upgrade;
+           proxy_set_header Connection 'upgrade';
+           proxy_set_header Host $host;
+       }
 
-# Create superuser
-python manage.py createsuperuser
+       location /api/ {
+           proxy_pass http://localhost:8000;
+           proxy_set_header Host $host;
+       }
+   }
+   ```
 
-# Import sample data
-python manage.py import_questions
-```
+3. **Environment** (`.env.production`)
+   ```env
+   DJANGO_DEBUG=False
+   DJANGO_ALLOWED_HOSTS=.your-domain.com
+   SECURE_SSL_REDIRECT=True
+   ```
 
-### Frontend Commands
-
-```bash
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Format code
-npm run format
-
-# Lint code
-npm run lint
-```
-
-## Deployment
-
-### Production Environment Variables
-
-Update these in your production environment:
-
-```env
-DJANGO_DEBUG=False
-DJANGO_ALLOWED_HOSTS=your-domain.com,www.your-domain.com
-SECURE_SSL_REDIRECT=True
-SESSION_COOKIE_SECURE=True
-CSRF_COOKIE_SECURE=True
-```
-
-### Database Backups
-
-```bash
-# Create backup
-docker-compose -f kbl-backend/docker-compose.yml exec -T db pg_dump -U kbl_user kbl_backend > backup_$(date +%Y%m%d).sql
-
-# Restore from backup
-cat backup.sql | docker-compose -f kbl-backend/docker-compose.yml exec -T db psql -U kbl_user kbl_backend
-```
+4. **Deploy**
+   ```bash
+   # Build and start
+   docker-compose -f docker-compose.prod.yml up -d --build
+   
+   # Run migrations
+   docker-compose -f docker-compose.prod.yml exec web python manage.py migrate
+   
+   # Collect static files
+   docker-compose -f docker-compose.prod.yml exec web python manage.py collectstatic --noinput
+   ```
 
 ## Troubleshooting
 
@@ -186,10 +149,30 @@ cat backup.sql | docker-compose -f kbl-backend/docker-compose.yml exec -T db psq
    - Ensure CORS is properly configured
    - Verify `NEXT_PUBLIC_API_URL` in frontend `.env.local`
 
-## License
+## 🔧 Maintenance
 
-This project is proprietary software. All rights reserved.
+### Backups
+```bash
+# Database backup
+docker exec -t kbl-db pg_dump -U kbl_user -d kbl_backend > backup_$(date +%Y%m%d).sql
 
-## Support
+# Media backup
+rsync -avz /path/to/media/ backup-server:/backups/media/
+```
 
-For support, please contact the development team at [your-email@example.com].
+### Logs
+```bash
+# Nginx logs
+sudo tail -f /var/log/nginx/error.log
+
+# Backend logs
+docker-compose logs -f web
+```
+
+## 📄 License
+
+Proprietary software. All rights reserved.
+
+## 📧 Support
+
+Contact: [kblteam@kbl.rw]
