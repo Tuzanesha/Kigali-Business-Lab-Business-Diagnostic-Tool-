@@ -43,6 +43,11 @@ SWAGGER_SETTINGS = {
 }
 
 ALLOWED_HOSTS = [h for h in os.getenv('DJANGO_ALLOWED_HOSTS', '').split(',') if h] or []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'kbl-web', 'backend-proxy-1']
+
+# Add these if not present
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 
 # Application definition
@@ -134,7 +139,7 @@ REST_FRAMEWORK = {
 if DEBUG:
     # In development, show emails in console
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-    print("\n\nEMAIL DEBUG MODE: Using console backend - emails will be printed to the console\n")
+    print("\n⚙️ DEBUG=True → Using console email backend (emails will appear in terminal logs)\n")
 else:
     # Production email settings
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -144,6 +149,7 @@ else:
     EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
     EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() in {'1','true','yes'}
     DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'no-reply@kbl.rw')
+    print("\n✅ Production email enabled → Using SMTP backend\n")
 
 # Email logging
 LOGGING = {

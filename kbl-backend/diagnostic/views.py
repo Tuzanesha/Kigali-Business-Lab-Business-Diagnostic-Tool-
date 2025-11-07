@@ -713,7 +713,107 @@ class NotificationPreferenceView(APIView):
             if f in request.data:
                 setattr(prefs, f, bool(request.data.get(f)))
         prefs.save()
-        return self.get(request)
+        return Response({'status': 'preferences updated'})
+
+
+class NotificationListView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        # Get query parameters
+        is_read = request.query_params.get('is_read')
+        notification_type = request.query_params.get('type')
+        limit = int(request.query_params.get('limit', 10))
+        
+        # Start with base queryset
+        notifications = Notification.objects.filter(user=request.user)
+        
+        # Apply filters if provided
+        if is_read is not None:
+            notifications = notifications.filter(is_read=is_read.lower() == 'true')
+        if notification_type:
+            notifications = notifications.filter(notification_type=notification_type)
+            
+        # Order and limit
+        notifications = notifications.order_by('-created_at')[:limit]
+        
+        # Serialize the response
+        data = [{
+            'id': n.id,
+            'type': n.notification_type,
+            'title': n.title,
+            'message': n.message,
+            'is_read': n.is_read,
+            'created_at': n.created_at,
+            'related_object_id': n.related_object_id,
+        } for n in notifications]
+        
+        return Response(data)
+    
+    def post(self, request):
+        # This endpoint is for marking notifications as read
+        notification_ids = request.data.get('ids', [])
+        if not notification_ids:
+            return Response({'detail': 'No notification IDs provided'}, status=400)
+            
+        updated = Notification.objects.filter(
+            id__in=notification_ids,
+            user=request.user
+        ).update(is_read=True)
+        
+        return Response({'status': f'Marked {updated} notifications as read'})
+
+
+def create_notification(user, title, message, notification_type='info', related_object=None):
+    """
+    Helper function to create notifications
+    """
+    content_type = None
+    object_id = None
+    
+    if related_object is not None:
+        content_type = ContentType.objects.get_for_model(related_object)
+        object_id = related_object.id
+    
+    notification = Notification.objects.create(
+        user=user,
+        title=title,
+        message=message,
+        notification_type=notification_type,
+        related_content_type=content_type,
+        related_object_id=object_id
+    )
+    
+    # Here you could add code to send email/push notifications based on user preferences
+    prefs, _ = NotificationPreference.objects.get_or_create(user=user)
+    
+    if prefs.email_notifications and notification_type != 'email':
+        # Send email notification
+        # You would implement this function to send emails
+        send_notification_email(user.email, title, message)
+    
+    return notification
+
+
+def send_notification_email(email, subject, message):
+    """
+    Send an email notification
+    """
+    from django.core.mail import send_mail
+    from django.conf import settings
+    
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            fail_silently=False,
+        )
+        return True
+    except Exception as e:
+        logger.error(f"Failed to send email to {email}: {str(e)}")
+        return False
 
 
 class EnterpriseProfileView(APIView):

@@ -31,6 +31,9 @@ from .views import (
     TeamMemberViewSet,
     AssessmentSessionDeleteView,
     ResendVerificationEmail,
+    SendEmailOTPView,
+    VerifyEmailOTPView,
+    NotificationListView,
 )
 
 router = DefaultRouter()
@@ -62,6 +65,7 @@ urlpatterns = [
     path('account/delete/', DeleteAccountView.as_view()),
     # Notifications
     path('account/notifications/', NotificationPreferenceView.as_view()),
+    path('notifications/', NotificationListView.as_view(), name='notification-list'),
     # Enterprise profile (optional pk)
     path('enterprise/profile/', EnterpriseProfileView.as_view()),
     path('enterprise/<int:pk>/profile/', EnterpriseProfileView.as_view()),

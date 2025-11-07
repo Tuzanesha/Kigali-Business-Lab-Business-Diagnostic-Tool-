@@ -25,7 +25,7 @@ services:
     command: bash -c "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn config.wsgi:application -b 0.0.0.0:8000 --workers 3"
     environment:
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-change-me}
-      - DJANGO_DEBUG=${DJANGO_DEBUG:-True}
+      - DJANGO_DEBUG=${DJANGO_DEBUG:-False}
       - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,kbl-web,backend-proxy-1
       - PUBLIC_BASE_URL=http://localhost:8080
       - POSTGRES_DB=${POSTGRES_DB:-kbl_backend}

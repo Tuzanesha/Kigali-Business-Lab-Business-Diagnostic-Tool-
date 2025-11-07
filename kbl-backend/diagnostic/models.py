@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
 
 
 User = get_user_model()
@@ -155,6 +156,37 @@ class NotificationPreference(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"Notification prefs for {self.user_id}"
+
+
+class Notification(TimeStampedModel):
+    NOTIFICATION_TYPES = [
+        ('info', 'Information'),
+        ('success', 'Success'),
+        ('warning', 'Warning'),
+        ('error', 'Error'),
+        ('assessment', 'Assessment'),
+        ('action_item', 'Action Item'),
+        ('team', 'Team'),
+    ]
+    
+    user = models.ForeignKey(User, related_name='notifications', on_delete=models.CASCADE)
+    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES, default='info')
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    related_object_id = models.PositiveIntegerField(null=True, blank=True)
+    related_content_type = models.ForeignKey(
+        ContentType,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.get_notification_type_display()}: {self.title}"
 
 
 class ActionItem(TimeStampedModel):
