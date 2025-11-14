@@ -135,10 +135,6 @@ REST_FRAMEWORK = {
     ),
 }
 
-<<<<<<< HEAD
-=======
-# Email configuration
->>>>>>> 299028a1e464bead76f11fb144b5a7adacf6555d
 if DEBUG:
     # In development, show emails in console
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
