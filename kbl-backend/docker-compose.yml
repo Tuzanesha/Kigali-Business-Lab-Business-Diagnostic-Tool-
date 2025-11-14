@@ -37,7 +37,6 @@ services:
       - AWS_SES_SECRET_ACCESS_KEY=${AWS_SES_SECRET_ACCESS_KEY}
       - AWS_SES_REGION=eu-north-1
       - DEFAULT_FROM_EMAIL=ishimwebuckle@gmail.com
-      - .:/app:delegated
     healthcheck:
       test: ["CMD", "python", "manage.py", "check"]
       interval: 10s
