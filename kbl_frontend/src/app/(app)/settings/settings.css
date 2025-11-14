@@ -1,0 +1,481 @@
+.settings-page {
+  width: 100%;
+
+  background-color: #f4f7fa; 
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+}
+
+
+/* .page-header {
+  margin-bottom: 2rem;
+} */
+
+.page-title {
+  font-family: 'Bebas Kai', sans-serif; 
+  font-size: clamp(1.5rem, 5vw, 2.25rem);
+  color: #012f53;
+  margin: 0;
+  margin-bottom: 1rem;
+}
+
+
+.tabs-nav {
+  display: flex;
+  border-bottom: 2px solid #e2e8f0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.tabs-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.tab-button {
+  padding: 0.75rem 1rem;
+  border: none;
+  background-color: transparent;
+  color: #64748b; 
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+@media (min-width: 640px) {
+  .tab-button {
+    padding: 0.75rem 1.25rem;
+    font-size: 1rem;
+  }
+}
+
+.tab-button:hover {
+  color: #0d2c4f; 
+}
+
+.tab-button.active {
+  color: #1168d9; 
+}
+
+
+.tab-button.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px; 
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: #1168d9;
+}
+
+.tab-content {
+  padding-top: 2rem;
+}
+
+
+.profile-card {
+  background-color: white;
+  border: 2px solid #1168d9; 
+  border-radius: 0.5rem;
+  padding: 2rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.profile-card-header {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0d2c4f;
+  margin: 0;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+
+.avatar-section {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.avatar {
+  width: 96px; 
+  height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background-color: #1168d9;
+  color: white;
+  font-size: 2.5rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.avatar-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 0.5rem;
+}
+
+.form-input {
+  width: 100%;
+  max-width: 100%;
+  height: 44px; 
+  padding: 0 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.375rem;
+  font-size: 1rem;
+  background-color: #f8fafc; 
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #1168d9;
+  box-shadow: 0 0 0 2px rgba(17, 104, 217, 0.2);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1rem;
+  text-decoration: none;
+}
+
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 1rem;
+  height: 40px;
+  border: none;
+  border-radius: 0.375rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+}
+
+.button-primary {
+  background-color: #1168d9;
+  color: white;
+}
+.button-primary:hover {
+  background-color: #0058c0;
+}
+
+.button-secondary {
+  background-color: transparent;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+.button-secondary:hover {
+  background-color: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+
+.settings-card {
+  background-color: white;
+  border-radius: 0.5rem;
+  padding: 2rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+}
+
+.settings-card-header {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0d2c4f;
+  margin: 0;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding-top: 2rem;
+}
+
+
+.danger-zone {
+  margin-top: 2rem;
+  border: 1px solid #ef4444; 
+  background-color: #fee2e2; 
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+}
+
+.danger-zone-header {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #b91c1c; 
+  letter-spacing: 0.05em;
+  margin: 0 0 0.5rem 0;
+}
+
+.danger-zone-text {
+  font-size: 0.875rem;
+  color: #991b1b; 
+  margin: 0 0 1rem 0;
+}
+
+
+.button-danger {
+  background-color: #dc2626; 
+  color: white;
+}
+.button-danger:hover {
+  background-color: #b91c1c; 
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr; 
+
+
+  row-gap: 1.5rem;
+  column-gap: 1.5rem;
+}
+
+
+@media (min-width: 768px) {
+  .form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+
+.grid-col-span-full {
+  grid-column: 1 / -1;
+}
+
+
+.form-subheading {
+  grid-column: 1 / -1; 
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0d2c4f;
+  margin-top: 1rem;
+  margin-bottom: 0;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+
+.form-subheading:first-of-type {
+  margin-top: 0;
+}
+
+
+
+.form-select {
+  width: 100%;
+  height: 44px;
+  padding: 0 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.375rem;
+  font-size: 1rem;
+  background-color: #f8fafc;
+  -webkit-appearance: none; 
+  -moz-appearance: none;
+  appearance: none;
+
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+}
+
+.form-textarea {
+  width: 100%;
+  min-height: 120px; 
+  padding: 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.375rem;
+  font-size: 1rem;
+  font-family: 'Inter', sans-serif; 
+  background-color: #f8fafc;
+  resize: vertical; 
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-textarea:focus {
+  outline: none;
+  border-color: #1168d9;
+  box-shadow: 0 0 0 2px rgba(17, 104, 217, 0.2);
+}
+
+
+.notification-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.notification-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 0;
+  border-bottom: 1px solid #e2e8f0; 
+}
+
+
+.notification-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.notification-item:first-child {
+  padding-top: 0;
+}
+
+
+.notification-text {
+  margin-right: 1.5rem; 
+}
+
+.notification-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #0d2c4f;
+  margin: 0 0 0.25rem 0;
+}
+
+.notification-description {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0;
+}
+
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;  
+  height: 24px; 
+  flex-shrink: 0;
+}
+
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #cbd5e1; 
+  border-radius: 34px;
+  transition: background-color 0.2s;
+}
+
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+
+.toggle-switch input:checked + .toggle-slider {
+  background-color: #1168d9; 
+}
+
+
+.toggle-switch input:checked + .toggle-slider:before {
+  transform: translateX(20px);
+}
+
+
+.team-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  text-decoration: none;
+}
+
+.team-list-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.team-member-item {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 1rem 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+@media (min-width: 768px) {
+  .team-member-item {
+    grid-template-columns: 2fr 1fr 2fr 1fr;
+    gap: 1rem;
+    align-items: center;
+  }
+}
+.team-member-item:first-of-type {
+  border-top: 1px solid #e2e8f0;
+}
+
+.team-member-name {
+  font-weight: 600;
+  color: #0d2c4f;
+}
+
+.team-member-role,
+.team-member-email {
+  color: #475569;
+  font-size: 0.875rem;
+}
+
+.team-member-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+

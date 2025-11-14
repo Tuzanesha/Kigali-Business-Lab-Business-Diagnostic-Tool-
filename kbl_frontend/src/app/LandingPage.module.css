@@ -1,0 +1,483 @@
+/* --- Main Layout --- */
+.pageWrapper {
+  background-color: #f8fafc; /* slate-50 */
+  color: #012f53; /* kbl-deep */
+}
+
+.container {
+  width: 100%;
+  max-width: 1280px; /* Corresponds to a standard container size */
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0 1.5rem; /* px-6 */
+}
+
+/* --- Header --- */
+.header {
+  padding: 1rem 4rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(8px);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.headerLogo {
+  font-family: 'Bebas Kai', sans-serif;
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: #012f53;
+}
+
+.headerNav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.loginButton {
+  border: 1px solid #0179d2;
+  color: #0179d2;
+  background-color: transparent;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.loginButton:hover {
+  background-color: rgba(1, 121, 210, 0.1);
+}
+
+.signupButton {
+  border: 1px solid #0179d2;
+  color: white;
+  background-color: #0179d2;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.signupButton:hover {
+  background-color: #0167b3;
+}
+
+/* --- Hero Section --- */
+.heroSection {
+  padding-top: 6rem;
+  padding-bottom: 4rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: center;
+  gap: 3rem;
+}
+@media (min-width: 768px) {
+  .heroSection {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.heroContent {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+.heroHeadline {
+  font-family: 'Bebas Kai', sans-serif;
+  font-size: 3.75rem; /* text-6xl */
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.heroSubheadline {
+  font-size: 1.125rem; /* text-lg */
+  color: #01497f;
+  max-width: 32rem; /* max-w-lg */
+}
+
+.heroButton {
+  padding: 1rem 2.5rem;
+  font-size: 1rem;
+  height: auto;
+  border-radius: 0.5rem;
+}
+
+/* --- Dashboard Preview Card --- */
+.dashboardCard {
+  padding: 1.5rem;
+  background-color: white;
+  border-radius: 1.5rem;
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+.dashboardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.dashboardTitle {
+  font-family: 'Bebas Kai', sans-serif;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #01497f;
+}
+
+.liveIndicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.ping {
+  position: relative;
+  display: flex;
+  height: 0.5rem;
+  width: 0.5rem;
+}
+.pingOuter {
+  animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+  position: absolute;
+  display: inline-flex;
+  height: 100%;
+  width: 100%;
+  border-radius: 9999px;
+  background-color: #ef4444;
+  opacity: 0.75;
+}
+.pingInner {
+  position: relative;
+  display: inline-flex;
+  border-radius: 9999px;
+  height: 0.5rem;
+  width: 0.5rem;
+  background-color: #ef4444;
+}
+
+@keyframes ping {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.statCard {
+  background-color: #f1f5f9;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  text-align: center;
+}
+
+.statValue {
+  font-family: 'Bebas Kai', sans-serif;
+  font-size: 1.875rem;
+}
+
+.statLabel {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+}
+
+.progressItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.progressLabel {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #01497f;
+}
+
+.progressBarContainer {
+  width: 100%;
+  background-color: #e5e7eb;
+  border-radius: 9999px;
+  height: 0.375rem;
+}
+
+.progressBarFill {
+  height: 0.375rem;
+  border-radius: 9999px;
+}
+
+/* --- Social Proof --- */
+.socialProof {
+  padding: 5rem 0;
+  text-align: center;
+}
+
+.socialProofTitle {
+  font-family: 'Bebas Kai', sans-serif;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #6b7280;
+  margin-bottom: 3rem;
+}
+
+.partnerIcons {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2.5rem;
+  flex-wrap: wrap;
+}
+
+.partnerIconWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+}
+.partnerIconCircle {
+  background-color: #e5e7eb;
+  padding: 1.25rem;
+  border-radius: 9999px;
+  transition: all 0.3s;
+}
+.partnerIconWrapper:hover .partnerIconCircle {
+  background-color: #0179d2;
+}
+.partnerIcon {
+  height: 2rem;
+  width: 2rem;
+  color: #012f53;
+  transition: all 0.3s;
+}
+.partnerIconWrapper:hover .partnerIcon {
+  color: white;
+}
+.partnerIconLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #01497f;
+}
+
+/* --- Footer --- */
+.footer {
+  background-color: #012f53;
+  color: white;
+}
+.footerContent {
+  padding: 1.5rem 4rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.footerLeft {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.footerLogo {
+  background-color: white;
+  color: #012f53;
+  font-family: 'Bebas Kai', sans-serif;
+  font-weight: 700;
+  font-size: 1.25rem;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+}
+.footerCopyright {
+  font-size: 0.875rem;
+  color: #94a3b8;
+}
+.footerLinks {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  font-size: 0.875rem;
+}
+.footerLinks a {
+  color: #cbd5e1;
+}
+.footerLinks a:hover {
+  color: white;
+}
+
+.sliderSection {
+  padding: 5rem 0;
+}
+
+.sliderTitle {
+  font-family: 'Bebas Kai', sans-serif;
+  font-size: 2.25rem; /* text-4xl */
+  text-align: center;
+  margin-bottom: 3rem;
+  color: #012f53; /* kbl-deep */
+}
+
+.sliderContainer {
+  width: 100%;
+  overflow: hidden; /* This is the mask that hides the rest of the track */
+  position: relative;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 20%,
+    black 80%,
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 20%,
+    black 80%,
+    transparent
+  );
+}
+
+.sliderTrack {
+  display: flex;
+  gap: 1.5rem; /* gap-6 */
+  padding: 0.5rem 0;
+  width: max-content; /* Allows the track to be as wide as its content */
+}
+
+.featureCard {
+  width: 280px; /* Fixed width for each card */
+  flex-shrink: 0; /* Prevents cards from shrinking */
+  background-color: white;
+  border-radius: 1.5rem; /* rounded-2xl */
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+  border: 1px solid #e2e8f0;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.featureCardIcon {
+  height: 2.5rem; /* h-10 */
+  width: 2.5rem; /* w-10 */
+  color: #0179d2; /* kbl-primary */
+}
+
+.featureCardTitle {
+  font-family: 'Bebas Kai', sans-serif;
+  font-size: 1.25rem; /* text-xl */
+  color: #012f53;
+}
+
+.featureCardDescription {
+  font-size: 0.875rem; /* text-sm */
+  color: #64748b; /* slate-500 */
+  line-height: 1.6;
+}
+
+/* ... keep all the existing styles from the top ... */
+
+/* --- NEW STYLES FOR THE "HOW IT WORKS" SECTION --- */
+.howItWorksSection {
+  padding: 5rem 0;
+  background-color: white; /* A clean white background to separate it */
+  border-top: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.howItWorksTitle {
+  font-family: 'Bebas Kai', sans-serif;
+  font-size: 2.25rem; /* text-4xl */
+  text-align: center;
+  margin-bottom: 1rem;
+  color: #012f53; /* kbl-deep */
+}
+
+.howItWorksSubtitle {
+  text-align: center;
+  font-size: 1.125rem; /* text-lg */
+  color: #64748b; /* slate-500 */
+  max-width: 600px;
+  margin: 0 auto 4rem auto; /* Center the subtitle */
+}
+
+.stepsGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+@media (min-width: 768px) {
+  .stepsGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.stepCard {
+  position: relative;
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+  border: 1px solid transparent;
+  border-radius: 1.5rem;
+  transition: all 0.3s ease-in-out;
+}
+.stepCard:hover {
+  border-color: #e2e8f0;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.05);
+  transform: translateY(-5px);
+}
+
+.stepNumber {
+  font-family: 'Bebas Kai', sans-serif;
+  font-size: 5rem; /* text-8xl */
+  font-weight: 700;
+  color: #f1f5f9; /* A very light, subtle grey */
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  line-height: 1;
+}
+
+.stepContent {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.stepIcon {
+  height: 2.5rem; /* h-10 */
+  width: 2.5rem; /* w-10 */
+  color: #0179d2; /* kbl-primary */
+}
+
+.stepTitle {
+  font-family: 'Bebas Kai', sans-serif;
+  font-size: 1.5rem; /* text-2xl */
+  color: #012f53;
+}
+
+.stepDescription {
+  font-size: 1rem;
+  color: #64748b;
+  line-height: 1.6;
+}
