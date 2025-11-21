@@ -172,7 +172,8 @@ def send_verification_email(request, user, base_url: str) -> bool:
         verification_url = f"{backend_url.rstrip('/')}/api/auth/verify-email/?uid={uidb64}&code={code}"
         
         # Log the generated URL for debugging
-        logger.debug(f"Frontend Base URL: {frontend_url}")
+        logger.debug(f"Base URL: {base_url}")
+        logger.debug(f"Backend URL: {backend_url}")
         logger.debug(f"Verification URL: {verification_url}")
 
         # For the email template, we still want to show the frontend domain for display

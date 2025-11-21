@@ -196,8 +196,15 @@ else:
     ]
 
 # Email settings
-# Use console backend in DEBUG mode (prints to logs), SMTP in production
-EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend' if DEBUG else 'django.core.mail.backends.smtp.EmailBackend')
+# Use SMTP backend if EMAIL_BACKEND is set, otherwise use console in DEBUG mode
+# In production, EMAIL_BACKEND should be explicitly set to 'django.core.mail.backends.smtp.EmailBackend'
+if os.getenv('EMAIL_BACKEND'):
+    EMAIL_BACKEND = os.getenv('EMAIL_BACKEND')
+elif DEBUG:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+else:
+    # Production: default to SMTP if not explicitly set
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 
 # SMTP Configuration (used when EMAIL_BACKEND is set to SMTP)
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
