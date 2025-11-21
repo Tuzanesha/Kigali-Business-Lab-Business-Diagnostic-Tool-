@@ -15,17 +15,8 @@ const nextConfig: NextConfig = {
     // TODO: Fix ESLint errors (unused vars, unescaped entities, etc.)
     ignoreDuringBuilds: true,
   },
-  webpack: (config, { isServer, dev }) => {
+  webpack: (config) => {
     config.stats = 'errors-warnings';
-
-    if (!dev && !isServer) {
-      Object.assign(config.resolve.alias, {
-        'react/jsx-runtime.js': 'preact/compat/jsx-runtime',
-        react: 'preact/compat',
-        'react-dom/test-utils': 'preact/test-utils',
-        'react-dom': 'preact/compat',
-      });
-    }
     return config;
   },
 
