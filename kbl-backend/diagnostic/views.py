@@ -1226,9 +1226,13 @@ class ResendVerificationEmail(APIView):
     permission_classes = [permissions.AllowAny]
     
     def post(self, request):
+        logger = logging.getLogger(__name__)
         email = request.data.get('email')
         if not email:
             return Response({"detail": "Email is required"}, status=400)
+        
+        email = email.strip().lower()
+        logger.info(f"Resend verification email request for: {email}")
             
         User = get_user_model()
         try:
@@ -1237,19 +1241,31 @@ class ResendVerificationEmail(APIView):
             # Check if already verified
             from .models import EmailOTP
             if EmailOTP.objects.filter(user=user, is_verified=True).exists():
+                logger.info(f"User {user.id} already verified, skipping resend")
                 return Response({"detail": "Email is already verified"}, status=400)
                 
             # Resend verification email
-            base = compute_public_base_url(request)
-            email_sent = send_verification_email(request, user, base)
-            
-            if email_sent:
-                return Response({"detail": "Verification email has been resent. Please check your inbox."})
-            else:
-                return Response({"detail": "Failed to send verification email. Please try again later."}, status=500)
+            try:
+                base = compute_public_base_url(request)
+                logger.debug(f"Computed base URL: {base}")
+                email_sent = send_verification_email(request, user, base)
+                
+                if email_sent:
+                    logger.info(f"✅ Successfully resent verification email to {email}")
+                    return Response({"detail": "Verification email has been resent. Please check your inbox."})
+                else:
+                    logger.error(f"❌ Failed to send verification email to {email}")
+                    return Response({"detail": "Failed to send verification email. Please try again later."}, status=500)
+            except Exception as e:
+                logger.error(f"❌ Error sending verification email to {email}: {str(e)}", exc_info=True)
+                return Response({"detail": f"Error sending email: {str(e)}"}, status=500)
                 
         except User.DoesNotExist:
+            logger.warning(f"Resend verification requested for non-existent email: {email}")
             return Response({"detail": "No account found with this email"}, status=404)
+        except Exception as e:
+            logger.error(f"Unexpected error in ResendVerificationEmail: {str(e)}", exc_info=True)
+            return Response({"detail": "An error occurred. Please try again later."}, status=500)
 
 
 from django.shortcuts import render
