@@ -15,10 +15,10 @@ def add_is_used_if_not_exists(apps, schema_editor):
             WHERE table_name='diagnostic_emailotp' AND column_name='is_used'
         """)
         if not cursor.fetchone():
-            # Column doesn't exist, add it
+            # Column doesn't exist, add it with default value
             cursor.execute("""
                 ALTER TABLE diagnostic_emailotp 
-                ADD COLUMN is_used BOOLEAN DEFAULT FALSE NOT NULL
+                ADD COLUMN is_used BOOLEAN DEFAULT FALSE
             """)
 
 
