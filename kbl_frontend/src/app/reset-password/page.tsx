@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
@@ -9,7 +9,10 @@ import styles from './reset-password.module.css';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { authApi } from '@/lib/api';
 
-export default function ResetPasswordPage() {
+// Force dynamic rendering - prevents static generation
+export const dynamic = 'force-dynamic';
+
+function ResetPasswordForm() {
   const [formData, setFormData] = useState({ newPassword: '', confirmPassword: '' });
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -80,5 +83,25 @@ export default function ResetPasswordPage() {
         <p className={styles.signupPrompt}>Remembered your password?{' '}<Link href="/login">Back to Login</Link></p>
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={
+      <div className={styles.container}>
+        <div className={styles.wrapper}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
+            <Link href="/"><Image src="/kbl-logo-blue.png" alt="KBL Logo" width={80} height={40} priority /></Link>
+          </div>
+          <h1 className={styles.title}>Reset Your Password</h1>
+          <div className={styles.card}>
+            <p>Loading...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <ResetPasswordForm />
+    </Suspense>
   );
 }
