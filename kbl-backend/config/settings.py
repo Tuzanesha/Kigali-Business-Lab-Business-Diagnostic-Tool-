@@ -18,11 +18,20 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'dev-insecure-secret-key')
 DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() in {'1', 'true', 'yes'}
 
 # Hosts and domains
-ALLOWED_HOSTS = ['*'] if DEBUG else [
-    'localhost', '127.0.0.1', 'kbl-web', 'backend-proxy-1',
-    *os.getenv('ALLOWED_HOSTS', '').split(',')
-]
-ALLOWED_HOSTS = [h for h in ALLOWED_HOSTS if h]
+if DEBUG:
+    ALLOWED_HOSTS = ['*']
+else:
+    # Get extra hosts from environment variable
+    extra_hosts = os.getenv('ALLOWED_HOSTS', '')
+    extra_hosts_list = [h.strip() for h in extra_hosts.split(',') if h.strip()]
+
+    ALLOWED_HOSTS = [
+        'localhost',
+        '127.0.0.1',
+        'kbl-web',
+        'backend-proxy-1',
+        'business-diagnostic-tool.onrender.com',
+    ] + extra_hosts_list
 
 # Security settings
 if not DEBUG:
@@ -142,6 +151,7 @@ _cors_origins_env = os.getenv('CORS_ALLOWED_ORIGINS', '')
 if _cors_origins_env:
     CORS_ALLOWED_ORIGINS = [origin.strip() for origin in _cors_origins_env.split(',') if origin.strip()]
 else:
+    # Default development origins
     CORS_ALLOWED_ORIGINS = [
         "http://localhost:3000",
         "http://localhost:8085",
@@ -149,6 +159,10 @@ else:
         "http://127.0.0.1:3000",
         "http://127.0.0.1:8000",
     ]
+    # Add frontend URL from environment if set (for production)
+    frontend_url = os.getenv('FRONTEND_URL', '')
+    if frontend_url and frontend_url not in CORS_ALLOWED_ORIGINS:
+        CORS_ALLOWED_ORIGINS.append(frontend_url)
 CORS_ALLOW_METHODS = [
     'DELETE',
     'GET',

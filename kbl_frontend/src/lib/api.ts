@@ -6,17 +6,32 @@ export type JwtPair = { access: string; refresh: string };
 // -------------------------------------------------------------------
 // Base URL selection (browser vs server)
 const getApiBaseUrl = () => {
+  // Production: Use environment variable (set in Render)
+  // Development: Use localhost URLs
   if (typeof window !== "undefined") {
-    // Browser environment - use direct backend URL to bypass proxy/nginx HTTPS issues
+    // Browser environment
+    // Check for production API URL first
+    const prodUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (prodUrl) {
+      // Ensure /api is included if not already present
+      const url = prodUrl.endsWith('/api') ? prodUrl : `${prodUrl.replace(/\/+$/, '')}/api`;
+      return url;
+    }
+    
+    // Development: use direct backend URL to bypass proxy/nginx HTTPS issues
     // Backend routes are under /api/ prefix, so include it
     const directUrl = "http://localhost:8000/api";
-    const proxyUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8085/api";
-    
-    // Use direct backend URL to bypass proxy issues (nginx was causing HTTPS upgrade)
-    // Django routes are at /api/* so we need /api in the base URL
     return directUrl;
   } else {
-    // Server-side rendering - use direct backend URL (no /api needed for internal calls)
+    // Server-side rendering
+    // Production: Use environment variable
+    const prodUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (prodUrl) {
+      // Ensure /api is included if not already present
+      return prodUrl.endsWith('/api') ? prodUrl : `${prodUrl.replace(/\/+$/, '')}/api`;
+    }
+    
+    // Development: use direct backend URL (no /api needed for internal calls)
     const url = process.env.NEXT_PUBLIC_API_URL_SERVER || "http://web:8000";
     return url;
   }
