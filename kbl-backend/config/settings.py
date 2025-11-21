@@ -143,12 +143,14 @@ SIMPLE_JWT = {
 }
 
 # CORS Settings
-CORS_ALLOW_ALL_ORIGINS = DEBUG
+# In production, we need explicit CORS configuration
+CORS_ALLOW_ALL_ORIGINS = False  # Always False in production for security
 CORS_ALLOW_CREDENTIALS = True
 
 # Get CORS allowed origins from environment or use defaults
 _cors_origins_env = os.getenv('CORS_ALLOWED_ORIGINS', '')
 if _cors_origins_env:
+    # Parse comma-separated list from environment
     CORS_ALLOWED_ORIGINS = [origin.strip() for origin in _cors_origins_env.split(',') if origin.strip()]
 else:
     # Default development origins
@@ -173,6 +175,12 @@ else:
     production_frontend = 'https://kigali-business-lab-business-diagnostic.onrender.com'
     if production_frontend not in CORS_ALLOWED_ORIGINS:
         CORS_ALLOWED_ORIGINS.append(production_frontend)
+
+# Log CORS configuration for debugging (only in DEBUG mode)
+if DEBUG:
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.debug(f"CORS_ALLOWED_ORIGINS: {CORS_ALLOWED_ORIGINS}")
 CORS_ALLOW_METHODS = [
     'DELETE',
     'GET',
