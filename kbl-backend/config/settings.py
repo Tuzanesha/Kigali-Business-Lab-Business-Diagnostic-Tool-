@@ -159,10 +159,20 @@ else:
         "http://127.0.0.1:3000",
         "http://127.0.0.1:8000",
     ]
+    
     # Add frontend URL from environment if set (for production)
     frontend_url = os.getenv('FRONTEND_URL', '')
-    if frontend_url and frontend_url not in CORS_ALLOWED_ORIGINS:
-        CORS_ALLOWED_ORIGINS.append(frontend_url)
+    if frontend_url:
+        # Ensure URL doesn't have trailing slash and is properly formatted
+        frontend_url = frontend_url.rstrip('/')
+        if frontend_url not in CORS_ALLOWED_ORIGINS:
+            CORS_ALLOWED_ORIGINS.append(frontend_url)
+    
+    # Also check for production frontend URL (Render deployment)
+    # Add the known production frontend URL
+    production_frontend = 'https://kigali-business-lab-business-diagnostic.onrender.com'
+    if production_frontend not in CORS_ALLOWED_ORIGINS:
+        CORS_ALLOWED_ORIGINS.append(production_frontend)
 CORS_ALLOW_METHODS = [
     'DELETE',
     'GET',
@@ -190,9 +200,11 @@ _csrf_origins_env = os.getenv('CSRF_TRUSTED_ORIGINS', '')
 if _csrf_origins_env:
     CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in _csrf_origins_env.split(',') if origin.strip()]
 else:
-    CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS + [
+    # Include all CORS allowed origins plus backend URL
+    CSRF_TRUSTED_ORIGINS = list(CORS_ALLOWED_ORIGINS) + [
         'http://localhost:8000',
         'http://127.0.0.1:8000',
+        'https://business-diagnostic-tool.onrender.com',  # Backend URL
     ]
 
 # Email settings
