@@ -1069,8 +1069,8 @@ class VerifyEmailLinkView(APIView):
         
         if not uidb64 or not code:
             logger.error("Missing UID or code in verification request")
-            # Redirect to frontend through proxy (port 8085)
-            frontend_url = os.environ.get('PUBLIC_BASE_URL', 'http://localhost:8085')
+            # Redirect to frontend URL (not backend)
+            frontend_url = os.environ.get('FRONTEND_URL') or os.environ.get('PUBLIC_BASE_URL', 'http://localhost:8085')
             return redirect(f"{frontend_url}/verification-status?verification=error&message=invalid_link")
         
         User = get_user_model()
@@ -1080,7 +1080,8 @@ class VerifyEmailLinkView(APIView):
             logger.info(f"Found user: {user.email} (ID: {user.id})")
         except (User.DoesNotExist, ValueError, TypeError, OverflowError) as e:
             logger.error(f"Invalid UID: {uidb64}, Error: {str(e)}")
-            frontend_url = os.environ.get('PUBLIC_BASE_URL', 'http://localhost:8085')
+            # Redirect to frontend URL (not backend)
+            frontend_url = os.environ.get('FRONTEND_URL') or os.environ.get('PUBLIC_BASE_URL', 'http://localhost:8085')
             return redirect(f"{frontend_url}/verification-status?verification=error&message=invalid_link")
             
         now = timezone.now()
@@ -1091,7 +1092,8 @@ class VerifyEmailLinkView(APIView):
             .first()
         )
         
-        frontend_url = os.environ.get('PUBLIC_BASE_URL', 'http://localhost:8085')
+        # Redirect to frontend URL (not backend)
+        frontend_url = os.environ.get('FRONTEND_URL') or os.environ.get('PUBLIC_BASE_URL', 'http://localhost:8085')
         
         if not otp:
             if EmailOTP.objects.filter(user=user, is_verified=True).exists():

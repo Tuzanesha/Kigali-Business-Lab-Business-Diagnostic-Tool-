@@ -160,11 +160,16 @@ def send_verification_email(request, user, base_url: str) -> bool:
 
         uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
         
-        # **CRITICAL FIX**: Use FRONTEND URL (proxy URL) for verification links
-        # This ensures users can access the link through the frontend on port 8085
-        # The proxy will forward /api/* requests to the backend
-        frontend_url = compute_public_base_url(request)
-        verification_url = f"{frontend_url}/api/auth/verify-email/?uid={uidb64}&code={code}"
+        # **PRODUCTION FIX**: Verification link should point to backend API directly
+        # In production (Render), use BACKEND_BASE_URL; in dev, use proxy URL
+        backend_url = os.environ.get('BACKEND_BASE_URL')
+        if not backend_url:
+            # Fallback to PUBLIC_BASE_URL or computed URL
+            backend_url = compute_public_base_url(request)
+        # Ensure we're using backend URL, not frontend
+        if 'vercel.app' in backend_url or 'localhost:3000' in backend_url:
+            backend_url = os.environ.get('BACKEND_BASE_URL', backend_url)
+        verification_url = f"{backend_url.rstrip('/')}/api/auth/verify-email/?uid={uidb64}&code={code}"
         
         # Log the generated URL for debugging
         logger.debug(f"Frontend Base URL: {frontend_url}")

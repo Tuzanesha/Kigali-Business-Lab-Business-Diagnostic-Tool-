@@ -46,8 +46,16 @@ def send_verification_email(request, user, base_url: str) -> bool:
 
         uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
         
-        # Use the proxy URL (8085) since everything goes through Nginx
-        verification_url = f"{base_url}/api/auth/verify-email/?uid={uidb64}&code={code}"
+        # In production, verification link should point to backend API directly
+        # In development, it can go through proxy
+        backend_url = os.environ.get('BACKEND_BASE_URL') or os.environ.get('PUBLIC_BASE_URL') or base_url
+        if not backend_url.endswith('/api'):
+            backend_url = backend_url.rstrip('/')
+            # If it's a frontend URL, we need to use backend URL instead
+            if 'vercel.app' in backend_url or 'localhost:3000' in backend_url or 'localhost:8085' in backend_url:
+                # Use BACKEND_BASE_URL if available, otherwise construct from PUBLIC_BASE_URL
+                backend_url = os.environ.get('BACKEND_BASE_URL', backend_url)
+        verification_url = f"{backend_url.rstrip('/')}/api/auth/verify-email/?uid={uidb64}&code={code}"
         
         logger.debug(f"Base URL: {base_url}")
         logger.debug(f"Verification URL: {verification_url}")
