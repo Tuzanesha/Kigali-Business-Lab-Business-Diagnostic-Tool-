@@ -1,0 +1,9 @@
+# Docker ignore file - prevent .env files from being copied into Docker image
+# Note: This only works for Docker builds, not for bind mounts in docker-compose
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+.env.*
+

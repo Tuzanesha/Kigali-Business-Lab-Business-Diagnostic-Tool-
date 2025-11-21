@@ -71,10 +71,7 @@ services:
       - /app/node_modules
     ports:
       - "3000:3000"  # Direct frontend access
-    command: >
-      sh -c "rm -rf node_modules/.vite && 
-           npm install --legacy-peer-deps && 
-           npm run dev"
+    entrypoint: ["/bin/sh", "/app/docker-entrypoint.sh"]
     restart: unless-stopped
 
   # Nginx Reverse Proxy - Integrates both on port 8085
