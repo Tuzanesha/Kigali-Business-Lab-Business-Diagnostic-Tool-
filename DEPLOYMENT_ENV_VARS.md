@@ -1,7 +1,8 @@
 # Environment Variables for Deployment
 
-## ✅ Your Backend URL
+## ✅ Your Deployed URLs
 **Backend**: `https://business-diagnostic-tool.onrender.com`
+**Frontend**: `https://kigali-business-lab-business-diagnostic.onrender.com`
 
 ---
 
@@ -25,18 +26,18 @@ Update these in your backend Render service:
 ### Required URLs (Update after frontend deployment):
 
 ```bash
-# Frontend URL - UPDATE THIS after you deploy frontend
-FRONTEND_URL=https://your-frontend.onrender.com
+# Frontend URL - ✅ UPDATE THIS NOW
+FRONTEND_URL=https://kigali-business-lab-business-diagnostic.onrender.com
 
-# CORS - UPDATE THIS after you deploy frontend
-CORS_ALLOWED_ORIGINS=https://your-frontend.onrender.com,http://localhost:3000,http://localhost:8085
+# CORS - ✅ UPDATE THIS NOW
+CORS_ALLOWED_ORIGINS=https://kigali-business-lab-business-diagnostic.onrender.com,http://localhost:3000,http://localhost:8085
 
 # Backend URLs (already correct)
 BACKEND_BASE_URL=https://business-diagnostic-tool.onrender.com
 PUBLIC_BASE_URL=https://business-diagnostic-tool.onrender.com
 
-# CSRF - UPDATE THIS after you deploy frontend
-CSRF_TRUSTED_ORIGINS=https://your-frontend.onrender.com,https://business-diagnostic-tool.onrender.com
+# CSRF - ✅ UPDATE THIS NOW
+CSRF_TRUSTED_ORIGINS=https://kigali-business-lab-business-diagnostic.onrender.com,https://business-diagnostic-tool.onrender.com
 ```
 
 ### Other Required Variables:
@@ -66,23 +67,25 @@ DEFAULT_FROM_EMAIL=your-email@gmail.com
 
 ---
 
-## 📝 Deployment Steps
+## 📝 Next Steps (URGENT - Do This Now!)
 
-1. **Deploy Frontend** with `NEXT_PUBLIC_API_URL=https://business-diagnostic-tool.onrender.com/api`
-2. **Note your frontend URL** (e.g., `https://kbl-frontend.onrender.com`)
-3. **Update Backend** with frontend URL in:
-   - `FRONTEND_URL`
-   - `CORS_ALLOWED_ORIGINS`
-   - `CSRF_TRUSTED_ORIGINS`
-4. **Redeploy Backend** after updating environment variables
+1. ✅ **Frontend is deployed** at `https://kigali-business-lab-business-diagnostic.onrender.com`
+2. ⚠️ **Update Backend Environment Variables** in Render:
+   - Go to your backend service → Environment tab
+   - Update `FRONTEND_URL` to: `https://kigali-business-lab-business-diagnostic.onrender.com`
+   - Update `CORS_ALLOWED_ORIGINS` to: `https://kigali-business-lab-business-diagnostic.onrender.com,http://localhost:3000,http://localhost:8085`
+   - Update `CSRF_TRUSTED_ORIGINS` to: `https://kigali-business-lab-business-diagnostic.onrender.com,https://business-diagnostic-tool.onrender.com`
+3. **Save and Redeploy** your backend service
+4. **Verify Frontend** has `NEXT_PUBLIC_API_URL=https://business-diagnostic-tool.onrender.com/api`
 
 ---
 
 ## ✅ Quick Checklist
 
-- [ ] Frontend `NEXT_PUBLIC_API_URL` set to `https://business-diagnostic-tool.onrender.com/api`
-- [ ] Backend `FRONTEND_URL` updated with your frontend URL
-- [ ] Backend `CORS_ALLOWED_ORIGINS` includes your frontend URL
-- [ ] Backend `CSRF_TRUSTED_ORIGINS` includes your frontend URL
+- [x] Frontend deployed at `https://kigali-business-lab-business-diagnostic.onrender.com`
+- [ ] Frontend `NEXT_PUBLIC_API_URL` set to `https://business-diagnostic-tool.onrender.com/api` (verify in Render)
+- [ ] Backend `FRONTEND_URL` updated to `https://kigali-business-lab-business-diagnostic.onrender.com`
+- [ ] Backend `CORS_ALLOWED_ORIGINS` includes `https://kigali-business-lab-business-diagnostic.onrender.com`
+- [ ] Backend `CSRF_TRUSTED_ORIGINS` includes `https://kigali-business-lab-business-diagnostic.onrender.com`
 - [ ] Backend redeployed after URL updates
 

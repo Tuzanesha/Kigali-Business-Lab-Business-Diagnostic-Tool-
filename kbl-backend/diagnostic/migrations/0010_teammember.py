@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('diagnostic', '0009_create_assessmentsession_if_missing'),
+        ('diagnostic', '0007_alter_enterprise_owner_actionitem_assessmentsession'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
