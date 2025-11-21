@@ -1,13 +1,15 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import styles from './verification-status.module.css';
 
-export default function VerificationStatusPage() {
+export const dynamic = 'force-dynamic';
+
+function VerificationStatusContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -143,6 +145,31 @@ export default function VerificationStatusPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function VerificationStatusPage() {
+  return (
+    <Suspense fallback={
+      <div className={styles.container}>
+        <div className={styles.wrapper}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ 
+              width: '48px', 
+              height: '48px', 
+              border: '2px solid #0179d2', 
+              borderTop: 'transparent',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite',
+              margin: '0 auto 1rem'
+            }}></div>
+            <p style={{ color: '#6b7280' }}>Loading...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <VerificationStatusContent />
+    </Suspense>
   );
 }
 
