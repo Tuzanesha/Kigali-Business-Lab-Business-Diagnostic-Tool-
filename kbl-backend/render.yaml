@@ -1,0 +1,64 @@
+services:
+  - type: web
+    name: kbl-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        sync: false
+      - key: DJANGO_DEBUG
+        value: False
+      - key: DJANGO_ALLOWED_HOSTS
+        sync: false
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: kbl-db
+          property: database
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: kbl-db
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: kbl-db
+          property: password
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: kbl-db
+          property: host
+      - key: POSTGRES_PORT
+        fromDatabase:
+          name: kbl-db
+          property: port
+      - key: EMAIL_BACKEND
+        value: django.core.mail.backends.smtp.EmailBackend
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_PORT
+        value: 587
+      - key: EMAIL_USE_TLS
+        value: True
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: BACKEND_BASE_URL
+        sync: false
+    healthCheckPath: /health/
+    buildCommand: ""
+    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 3
+
+databases:
+  - name: kbl-db
+    databaseName: kbl_backend
+    user: kbl_user
+    plan: starter
+

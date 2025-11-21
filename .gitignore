@@ -1,0 +1,38 @@
+# Remove nested .git directories
+kbl-backend/.git
+kbl_frontend/.git
+
+# Large files
+*.log
+debug.log
+.DS_Store
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.env
+.env.local
+.venv/
+venv/
+
+# Static files and build artifacts
+kbl-backend/staticfiles/
+kbl-backend/media/
+kbl-backend/.venv/
+kbl_frontend/.next/
+kbl_frontend/out/
+kbl_frontend/.next/
+
+# Additional exclusions
+*.map
+*.min.js
+*.pack.gz
+*.dylib
+*.so
