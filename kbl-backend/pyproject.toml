@@ -14,3 +14,9 @@ exclude = '''
   )/
 )
 '''
+
+[tool.basedpyright]
+pythonVersion = "3.13"
+reportMissingImports = true
+reportMissingTypeStubs = false
+typeCheckingMode = "basic"

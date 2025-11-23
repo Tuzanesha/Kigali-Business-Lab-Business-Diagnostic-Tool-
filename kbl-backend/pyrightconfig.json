@@ -1,0 +1,27 @@
+{
+  "include": [
+    "**/*.py"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    "**/migrations",
+    "**/.venv",
+    "**/venv",
+    "**/node_modules"
+  ],
+  "pythonVersion": "3.13",
+  "pythonPlatform": "Darwin",
+  "reportMissingImports": true,
+  "reportMissingTypeStubs": false,
+  "typeCheckingMode": "basic",
+  "executionEnvironments": [
+    {
+      "root": ".",
+      "pythonVersion": "3.13",
+      "extraPaths": [
+        "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages"
+      ]
+    }
+  ]
+}
+
