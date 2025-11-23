@@ -26,26 +26,27 @@ services:
     container_name: kbl-web
     command: bash -c "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn config.wsgi:application -b 0.0.0.0:8000 --workers 3"
     environment:
-      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-change-me}
-      - DJANGO_DEBUG=True
-      - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,kbl-web,backend-proxy-1,0.0.0.0
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      - DJANGO_DEBUG=${DJANGO_DEBUG}
+      - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS},kbl-web,backend-proxy-1,0.0.0.0
       - PUBLIC_BASE_URL=http://localhost:8085
-      - FRONTEND_URL=http://localhost:3000
+      - FRONTEND_URL=${FRONTEND_URL}
       - BACKEND_BASE_URL=http://localhost:8000
-      - POSTGRES_DB=${POSTGRES_DB:-kbl_backend}
-      - POSTGRES_USER=${POSTGRES_USER:-kbl_user}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-kblUser1234}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
-      - EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+      - EMAIL_BACKEND=${EMAIL_BACKEND}
       - EMAIL_HOST=smtp.gmail.com
       - EMAIL_PORT=587
       - EMAIL_USE_TLS=True
       - EMAIL_HOST_USER=ishimwebuckle@gmail.com
       - EMAIL_HOST_PASSWORD=lplupjaoybwgdajc
       - DEFAULT_FROM_EMAIL=ishimwebuckle@gmail.com
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
     ports:
-      - "8000:8000"  # Direct backend access
+      - "8000:8000"
     healthcheck:
       test: ["CMD", "python", "manage.py", "check"]
       interval: 10s
@@ -57,7 +58,6 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # Frontend Service (Next.js) - Direct access on port 3000
   frontend:
     image: node:18-alpine
     container_name: kbl-frontend
@@ -65,16 +65,15 @@ services:
     environment:
       - NODE_ENV=development
       - NEXT_PUBLIC_API_URL=http://localhost:8085/api
-      - NEXT_PUBLIC_API_URL_SERVER=http://web:8000 # Use proxy for API calls
+      - NEXT_PUBLIC_API_URL_SERVER=http://web:8000
     volumes:
       - ../kbl_frontend:/app
       - /app/node_modules
     ports:
-      - "3000:3000"  # Direct frontend access
+      - "3000:3000"
     entrypoint: ["/bin/sh", "/app/docker-entrypoint.sh"]
     restart: unless-stopped
 
-  # Nginx Reverse Proxy - Integrates both on port 8085
   proxy:
     image: nginx:alpine
     container_name: kbl-proxy
@@ -91,7 +90,3 @@ services:
 
 volumes:
   pgdata:
-
-networks:
-  default:
-    driver: bridge
