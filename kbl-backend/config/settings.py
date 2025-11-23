@@ -9,339 +9,270 @@ import os
 from dotenv import load_dotenv
 from datetime import timedelta
 
-# Build paths
+# ---------------------------------------------------------------
+# BASE DIRECTORY & ENV LOADING
+# ---------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
-# Security settings
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'dev-insecure-secret-key')
-DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() in {'1', 'true', 'yes'}
+# ---------------------------------------------------------------
+# SECURITY
+# ---------------------------------------------------------------
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-insecure-secret-key")
+DEBUG = os.getenv("DJANGO_DEBUG", "True").lower() in {"1", "true", "yes"}
 
-# Hosts and domains
+# ALLOWED HOSTS
 if DEBUG:
-    ALLOWED_HOSTS = ['*']
+    ALLOWED_HOSTS = ["*"]
 else:
-    # Get extra hosts from environment variable
-    extra_hosts = os.getenv('ALLOWED_HOSTS', '')
-    extra_hosts_list = [h.strip() for h in extra_hosts.split(',') if h.strip()]
-
+    extra_hosts = os.getenv("DJANGO_ALLOWED_HOSTS", "")
+    extra_hosts_list = [h.strip() for h in extra_hosts.split(",") if h.strip()]
     ALLOWED_HOSTS = [
-        'localhost',
-        '127.0.0.1',
-        'kbl-web',
-        'backend-proxy-1',
-        'business-diagnostic-tool.onrender.com',
+        "localhost",
+        "127.0.0.1",
+        "kbl-web",
+        "backend-proxy-1",
+        "business-diagnostic-tool.onrender.com",
     ] + extra_hosts_list
 
-# Security settings
+# SECURITY ENFORCEMENTS (HTTPS)
 if not DEBUG:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-# Application definition
+# ---------------------------------------------------------------
+# APPLICATIONS
+# ---------------------------------------------------------------
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'django.contrib.postgres',
-    
-    # Third-party apps
-    'rest_framework',
-    'rest_framework_simplejwt',
-    'rest_framework_simplejwt.token_blacklist',
-    'drf_yasg',
-    'corsheaders',
-    
-    # Local apps
-    'accounts',
-    'diagnostic',
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "django.contrib.postgres",
+
+    # Third-party
+    "rest_framework",
+    "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
+    "drf_yasg",
+    "corsheaders",
+
+    # Local
+    "accounts",
+    "diagnostic",
 ]
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
-    'corsheaders.middleware.CorsMiddleware',  # CORS middleware should be early - handles OPTIONS before redirects
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-# Disable automatic trailing slash redirects for API endpoints
-# This prevents redirects on CORS preflight requests (OPTIONS)
-APPEND_SLASH = False
+APPEND_SLASH = False  # Prevent trailing slash redirects
 
-ROOT_URLCONF = 'config.urls'
+ROOT_URLCONF = "config.urls"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [BASE_DIR / "templates"],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'config.wsgi.application'
+WSGI_APPLICATION = "config.wsgi.application"
 
-# Database
+# ---------------------------------------------------------------
+# DATABASE
+# ---------------------------------------------------------------
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('POSTGRES_DB', 'kbl_backend'),
-        'USER': os.getenv('POSTGRES_USER', 'kbl_user'),
-        'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'kblUser1234'),
-        'HOST': os.getenv('POSTGRES_HOST', 'db'),
-        'PORT': os.getenv('POSTGRES_PORT', '5432'),
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("POSTGRES_DB", "kbl_backend"),
+        "USER": os.getenv("POSTGRES_USER", "kbl_user"),
+        "PASSWORD": os.getenv("POSTGRES_PASSWORD", "kblUser1234"),
+        "HOST": os.getenv("POSTGRES_HOST", "db"),
+        "PORT": os.getenv("POSTGRES_PORT", "5432"),
     }
 }
 
-# REST Framework
-# REST Framework settings
+# ---------------------------------------------------------------
+# REST FRAMEWORK
+# ---------------------------------------------------------------
 REST_FRAMEWORK = {
-    'DEFAULT_RENDERER_CLASSES': (
-        'rest_framework.renderers.JSONRenderer',
-        'rest_framework.renderers.BrowsableAPIRenderer',
-    ) if DEBUG else (
-        'rest_framework.renderers.JSONRenderer',
+    "DEFAULT_RENDERER_CLASSES": (
+        ("rest_framework.renderers.JSONRenderer",
+         "rest_framework.renderers.BrowsableAPIRenderer")
+        if DEBUG else ("rest_framework.renderers.JSONRenderer",)
     ),
-    'DEFAULT_PARSER_CLASSES': (
-        'rest_framework.parsers.JSONParser',
-        'rest_framework.parsers.FormParser',
-        'rest_framework.parsers.MultiPartParser',
+    "DEFAULT_PARSER_CLASSES": (
+        "rest_framework.parsers.JSONParser",
+        "rest_framework.parsers.FormParser",
+        "rest_framework.parsers.MultiPartParser",
     ),
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
-    'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
     ),
-    'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 20,
+    "DEFAULT_SCHEMA_CLASS": "rest_framework.schemas.coreapi.AutoSchema",
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 20,
 }
 
-# JWT Settings
+# JWT CONFIG
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=2),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=14),
-    'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': True,
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=2),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=14),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
 }
 
-# CORS Settings
-# In production, we need explicit CORS configuration
-CORS_ALLOW_ALL_ORIGINS = False  # Always False in production for security
+# ---------------------------------------------------------------
+# CORS & CSRF
+# ---------------------------------------------------------------
+CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
 
-# Get CORS allowed origins from environment or use defaults
-_cors_origins_env = os.getenv('CORS_ALLOWED_ORIGINS', '')
+_cors_origins_env = os.getenv("CORS_ALLOWED_ORIGINS", "")
 if _cors_origins_env:
-    # Parse comma-separated list from environment
-    CORS_ALLOWED_ORIGINS = [origin.strip() for origin in _cors_origins_env.split(',') if origin.strip()]
+    CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_origins_env.split(",") if o.strip()]
 else:
-    # Default development origins
     CORS_ALLOWED_ORIGINS = [
         "http://localhost:3000",
         "http://localhost:8085",
         "http://localhost:8000",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:8000",
+        os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/"),
+        "https://kigali-business-lab-business-diagnostic.onrender.com",
     ]
-    
-    # Add frontend URL from environment if set (for production)
-    frontend_url = os.getenv('FRONTEND_URL', '')
-    if frontend_url:
-        # Ensure URL doesn't have trailing slash and is properly formatted
-        frontend_url = frontend_url.rstrip('/')
-        if frontend_url not in CORS_ALLOWED_ORIGINS:
-            CORS_ALLOWED_ORIGINS.append(frontend_url)
-    
-    # Also check for production frontend URL (Render deployment)
-    # Add the known production frontend URL
-    production_frontend = 'https://kigali-business-lab-business-diagnostic.onrender.com'
-    if production_frontend not in CORS_ALLOWED_ORIGINS:
-        CORS_ALLOWED_ORIGINS.append(production_frontend)
 
-# Log CORS configuration for debugging (only in DEBUG mode)
-if DEBUG:
-    import logging
-    logger = logging.getLogger(__name__)
-    logger.debug(f"CORS_ALLOWED_ORIGINS: {CORS_ALLOWED_ORIGINS}")
-CORS_ALLOW_METHODS = [
-    'DELETE',
-    'GET',
-    'OPTIONS',
-    'PATCH',
-    'POST',
-    'PUT',
-]
+CORS_ALLOW_METHODS = ["DELETE", "GET", "OPTIONS", "PATCH", "POST", "PUT"]
 CORS_ALLOW_HEADERS = [
-    'accept',
-    'accept-encoding',
-    'authorization',
-    'content-type',
-    'dnt',
-    'origin',
-    'user-agent',
-    'x-csrftoken',
-    'x-requested-with',
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
 ]
-# Prevent redirects on preflight requests
 CORS_PREFLIGHT_MAX_AGE = 86400
 
-# CSRF settings
-_csrf_origins_env = os.getenv('CSRF_TRUSTED_ORIGINS', '')
+_csrf_origins_env = os.getenv("CSRF_TRUSTED_ORIGINS", "")
 if _csrf_origins_env:
-    CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in _csrf_origins_env.split(',') if origin.strip()]
+    CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_origins_env.split(",") if o.strip()]
 else:
-    # Include all CORS allowed origins plus backend URL
-    CSRF_TRUSTED_ORIGINS = list(CORS_ALLOWED_ORIGINS) + [
-        'http://localhost:8000',
-        'http://127.0.0.1:8000',
-        'https://business-diagnostic-tool.onrender.com',  # Backend URL
+    CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS + [
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "https://business-diagnostic-tool.onrender.com",
     ]
 
-# Email settings
-# Priority: 1. EMAIL_BACKEND env var, 2. SendGrid if API key present, 3. SMTP if configured, 4. Console in DEBUG
-if os.getenv('EMAIL_BACKEND'):
-    EMAIL_BACKEND = os.getenv('EMAIL_BACKEND')
-elif os.getenv('SENDGRID_API_KEY'):
-    # Use SendGrid if API key is present
-    EMAIL_BACKEND = 'config.email_backends.SendGridEmailBackend'
-elif DEBUG:
-    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# ---------------------------------------------------------------
+# EMAIL CONFIG — SENDGRID PRIMARY
+# ---------------------------------------------------------------
+SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
+
+if SENDGRID_API_KEY:
+    EMAIL_BACKEND = "sendgrid_backend.SendgridBackend"
+    SENDGRID_SANDBOX_MODE_IN_DEBUG = False
+    SENDGRID_ECHO_TO_STDOUT = DEBUG
 else:
-    # Production: default to SMTP if not explicitly set
-    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
-# SendGrid Configuration (used when EMAIL_BACKEND is set to SendGrid)
-SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY', '')
-DEFAULT_FROM_NAME = os.getenv('DEFAULT_FROM_NAME', 'Kigali Business Lab')
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "no-reply@kbl.com")
+DEFAULT_FROM_NAME = os.getenv("DEFAULT_FROM_NAME", "Kigali Business Lab")
 
-# SMTP Configuration (used when EMAIL_BACKEND is set to SMTP)
-EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
-EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
-EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() in {'1', 'true', 'yes'}
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+# ---------------------------------------------------------------
+# CUSTOM USER
+# ---------------------------------------------------------------
+AUTH_USER_MODEL = "accounts.User"
 
-# Default FROM email - prioritize env var, then EMAIL_HOST_USER, then default
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'ishimwechloee@gmail.com')
-
-# Swagger settings
-SWAGGER_SETTINGS = {
-    'USE_SESSION_AUTH': False,
-    'SECURITY_DEFINITIONS': {
-        'Bearer': {
-            'type': 'apiKey',
-            'name': 'Authorization',
-            'in': 'header',
-            'description': 'JWT Authorization header using the Bearer scheme. Example: "Bearer {token}"',
-        }
-    },
-    'DEFAULT_MODEL_RENDERING': 'example',
-    'DEFAULT_FIELD_INSPECTORS': [
-        'drf_yasg.inspectors.CamelCaseJSONFilter',
-        'drf_yasg.inspectors.ReferencingSerializerInspector',
-        'drf_yasg.inspectors.RelatedFieldInspector',
-        'drf_yasg.inspectors.ChoiceFieldInspector',
-        'drf_yasg.inspectors.FileFieldInspector',
-        'drf_yasg.inspectors.DictFieldInspector',
-        'drf_yasg.inspectors.SimpleFieldInspector',
-        'drf_yasg.inspectors.StringDefaultFieldInspector',
-    ],
-}
-
-# Custom user model
-AUTH_USER_MODEL = 'accounts.User'
-
-# Password validation
+# ---------------------------------------------------------------
+# PASSWORD VALIDATION
+# ---------------------------------------------------------------
 AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-# Internationalization
-LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+# ---------------------------------------------------------------
+# INTERNATIONALIZATION
+# ---------------------------------------------------------------
+LANGUAGE_CODE = "en-us"
+TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
-# Static files
-STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# ---------------------------------------------------------------
+# STATIC & MEDIA FILES
+# ---------------------------------------------------------------
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-# Media files
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
-# Default primary key field type
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# Environment URLs
-FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
-BACKEND_BASE_URL = os.getenv('BACKEND_BASE_URL', 'http://localhost:8000')
-PUBLIC_BASE_URL = os.getenv('PUBLIC_BASE_URL', 'http://localhost:8085')
+# ---------------------------------------------------------------
+# ENVIRONMENT URLS
+# ---------------------------------------------------------------
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:8000")
+PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "http://localhost:8085")
 
-# Logging
+# ---------------------------------------------------------------
+# LOGGING
+# ---------------------------------------------------------------
 LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {message}',
-            'style': '{',
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {"format": "{levelname} {asctime} {module} {message}", "style": "{"},
+        "simple": {"format": "{levelname} {message}", "style": "{"},
+    },
+    "handlers": {
+        "console": {
+            "level": "DEBUG" if DEBUG else "INFO",
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
         },
-        'simple': {
-            'format': '{levelname} {message}',
-            'style': '{',
+        "file": {
+            "level": "DEBUG" if DEBUG else "WARNING",
+            "class": "logging.FileHandler",
+            "filename": os.path.join(BASE_DIR, "debug.log"),
+            "formatter": "verbose",
         },
     },
-    'handlers': {
-        'console': {
-            'level': 'DEBUG' if DEBUG else 'INFO',
-            'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
-        },
-        'file': {
-            'level': 'DEBUG' if DEBUG else 'WARNING',
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'debug.log'),
-            'formatter': 'verbose',
-        },
-    },
-    'loggers': {
-        'django': {
-            'handlers': ['console', 'file'],
-            'level': 'INFO',
-            'propagate': True,
-        },
-        'django.request': {
-            'handlers': ['console', 'file'],
-            'level': 'DEBUG' if DEBUG else 'WARNING',
-            'propagate': False,
-        },
-        'diagnostic': {
-            'handlers': ['console', 'file'],
-            'level': 'DEBUG' if DEBUG else 'INFO',
-            'propagate': False,
-        },
+    "loggers": {
+        "django": {"handlers": ["console", "file"], "level": "INFO", "propagate": True},
+        "django.request": {"handlers": ["console", "file"], "level": "DEBUG" if DEBUG else "WARNING", "propagate": False},
+        "diagnostic": {"handlers": ["console", "file"], "level": "DEBUG" if DEBUG else "INFO", "propagate": False},
     },
 }
