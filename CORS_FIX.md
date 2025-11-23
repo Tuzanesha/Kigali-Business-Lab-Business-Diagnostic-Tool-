@@ -62,3 +62,5 @@ The code is configured to:
 - Allow credentials (`CORS_ALLOW_CREDENTIALS = True`)
 
 
+
+

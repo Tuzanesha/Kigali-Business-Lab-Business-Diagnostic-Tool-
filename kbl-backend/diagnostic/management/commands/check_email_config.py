@@ -100,3 +100,5 @@ class Command(BaseCommand):
             self.stdout.write('4. Ensure DEFAULT_FROM_EMAIL matches EMAIL_HOST_USER')
 
 
+
+

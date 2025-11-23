@@ -193,17 +193,30 @@ else:
 # ---------------------------------------------------------------
 # EMAIL CONFIG — SENDGRID PRIMARY
 # ---------------------------------------------------------------
-SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
+# Priority: 1. EMAIL_BACKEND env var, 2. SendGrid if API key present, 3. SMTP if configured, 4. Console in DEBUG
+SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "")
 
-if SENDGRID_API_KEY:
-    EMAIL_BACKEND = "sendgrid_backend.SendgridBackend"
-    SENDGRID_SANDBOX_MODE_IN_DEBUG = False
-    SENDGRID_ECHO_TO_STDOUT = DEBUG
-else:
+if os.getenv("EMAIL_BACKEND"):
+    EMAIL_BACKEND = os.getenv("EMAIL_BACKEND")
+elif SENDGRID_API_KEY:
+    # Use our custom SendGrid backend if API key is present
+    EMAIL_BACKEND = "config.email_backends.SendGridEmailBackend"
+elif DEBUG:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+else:
+    # Production: default to SMTP if not explicitly set
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 
-DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "no-reply@kbl.com")
+# SendGrid Configuration
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "ishimwechloee@gmail.com")
 DEFAULT_FROM_NAME = os.getenv("DEFAULT_FROM_NAME", "Kigali Business Lab")
+
+# SMTP Configuration (used when EMAIL_BACKEND is set to SMTP)
+EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() in {"1", "true", "yes"}
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 
 # ---------------------------------------------------------------
 # CUSTOM USER

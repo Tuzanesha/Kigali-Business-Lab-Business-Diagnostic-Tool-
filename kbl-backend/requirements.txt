@@ -16,3 +16,5 @@ whitenoise==6.7.0
 django-ses>=3.4.1
 django-cors-headers==4.3.1
 sendgrid==6.11.0
+django-sendgrid-v5
+
