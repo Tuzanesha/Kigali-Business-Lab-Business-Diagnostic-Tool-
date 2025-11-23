@@ -160,22 +160,59 @@ def send_verification_email(request, user, base_url: str) -> bool:
 
         uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
         
-        # **PRODUCTION FIX**: Verification link should point to backend API directly
-        # Priority: 1. BACKEND_BASE_URL env var, 2. get_backend_base_url(), 3. compute from request
+        # **CRITICAL**: Verification link must use a publicly accessible URL (not localhost)
+        # Email links with localhost won't work when clicked from email clients
+        # Priority for PRODUCTION: 1. BACKEND_BASE_URL env var, 2. Request headers, 3. Settings, 4. Production fallback
+        
+        is_production = not settings.DEBUG
         backend_url = os.environ.get('BACKEND_BASE_URL')
-        if not backend_url:
-            # Try to get backend URL from the helper function
+        
+        # Check if BACKEND_BASE_URL is localhost - if so, we need a public URL
+        is_localhost = backend_url and any(x in backend_url.lower() for x in ['localhost', '127.0.0.1'])
+        
+        # In production, prioritize BACKEND_BASE_URL if it's set and not localhost
+        if is_production and backend_url and not is_localhost:
+            logger.info(f"Using BACKEND_BASE_URL from environment: {backend_url}")
+        # If no BACKEND_BASE_URL or it's localhost, try to get from request headers
+        elif not backend_url or is_localhost:
             try:
-                backend_url = get_backend_base_url(request)
-            except Exception:
-                # Fallback to computing from request
-                backend_url = compute_public_base_url(request)
+                # Check for forwarded protocol and host (common in production/proxy setups)
+                proto = request.META.get('HTTP_X_FORWARDED_PROTO') or ('https' if request.is_secure() else 'http')
+                host = request.META.get('HTTP_X_FORWARDED_HOST') or request.META.get('HTTP_HOST') or request.get_host()
+                
+                # Only use request-based URL if it's NOT localhost (localhost won't work from email)
+                if host and not any(x in host.lower() for x in ['localhost', '127.0.0.1']):
+                    backend_url = f"{proto}://{host}".rstrip('/')
+                    # Remove /api if present since we'll add it back
+                    if backend_url.endswith('/api'):
+                        backend_url = backend_url[:-4]
+                    logger.info(f"Using request-based backend URL: {backend_url}")
+                elif is_production:
+                    # In production, try to get from settings
+                    backend_url = getattr(settings, 'BACKEND_BASE_URL', None)
+                    if backend_url and not any(x in backend_url.lower() for x in ['localhost', '127.0.0.1']):
+                        logger.info(f"Using BACKEND_BASE_URL from settings: {backend_url}")
+            except Exception as e:
+                logger.warning(f"Could not determine backend URL from request: {str(e)}")
+                backend_url = None
+        
+        # If still localhost or no URL, use production backend URL
+        # This ensures email links always work
+        if not backend_url or any(x in backend_url.lower() for x in ['localhost', '127.0.0.1']):
+            # For email verification links, we MUST use a publicly accessible URL
+            production_backend = 'https://business-diagnostic-tool.onrender.com'
+            if is_localhost:
+                logger.warning(f"BACKEND_BASE_URL is localhost ({backend_url}), using production URL for email verification: {production_backend}")
+            elif is_production:
+                logger.info(f"Using production backend URL: {production_backend}")
+            backend_url = production_backend
         
         # Ensure we're using backend URL, not frontend
         # Check if URL looks like frontend (Vercel, localhost:3000, or frontend domain)
         if any(x in backend_url for x in ['vercel.app', 'localhost:3000', 'kigali-business-lab-business-diagnostic.onrender.com']):
-            # Force use of BACKEND_BASE_URL if available, otherwise use production backend
-            backend_url = os.environ.get('BACKEND_BASE_URL') or 'https://business-diagnostic-tool.onrender.com'
+            # Force use of production backend URL
+            backend_url = 'https://business-diagnostic-tool.onrender.com'
+            logger.warning(f"Detected frontend URL, using production backend: {backend_url}")
         
         # Ensure URL doesn't have trailing slash before adding path
         backend_url = backend_url.rstrip('/')

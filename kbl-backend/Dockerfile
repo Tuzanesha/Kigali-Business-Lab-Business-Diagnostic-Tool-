@@ -54,7 +54,7 @@ RUN python manage.py collectstatic --noinput || true
 # Use gunicorn as the entrypoint
 # Run migrations and collectstatic before starting server
 # PORT is provided by Render
-CMD python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 3
+CMD python manage.py migrate --noinput && python manage.py collectstatic --noinput && python manage.py import_questions && gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 3
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
