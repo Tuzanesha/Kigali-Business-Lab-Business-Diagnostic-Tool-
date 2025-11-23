@@ -99,3 +99,4 @@ class Command(BaseCommand):
             self.stdout.write('3. For Gmail, use an App Password (not your regular password)')
             self.stdout.write('4. Ensure DEFAULT_FROM_EMAIL matches EMAIL_HOST_USER')
 
+

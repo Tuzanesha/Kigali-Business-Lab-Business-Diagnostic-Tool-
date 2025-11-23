@@ -215,72 +215,72 @@ function LoginPageContent() {
             <form onSubmit={handleSubmit} className={styles.form}>
               <div className={styles.formGroup}>
                 <label htmlFor="email" className={styles.label}>
-                  Email Address
-                </label>
+                Email Address
+              </label>
                 <div className={styles.passwordWrapper}>
                   <Mail className={styles.inputIcon} />
-                  <input
+                <input
                     type="email"
-                    id="email"
-                    placeholder="Enter your email address"
+                  id="email"
+                  placeholder="Enter your email address"
                     className={styles.input}
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                     required
-                    disabled={isLoggingIn}
-                  />
-                </div>
+                  disabled={isLoggingIn}
+                />
               </div>
+            </div>
 
               <div className={styles.formGroup}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                   <label htmlFor="password" className={styles.label}>
-                    Password
-                  </label>
+                  Password
+                </label>
                   <Link href="/forgot-password" className={styles.forgotLink}>
-                    Forgot password?
-                  </Link>
+                  Forgot password?
+                </Link>
                 </div>
                 <div className={styles.passwordWrapper}>
                   <Lock className={styles.inputIcon} />
-                  <input
+                <input
                     type={showPassword ? 'text' : 'password'}
-                    id="password"
-                    placeholder="Enter your password"
+                  id="password"
+                  placeholder="Enter your password"
                     className={styles.input}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                     required
-                    disabled={isLoggingIn}
-                  />
-                  <button
-                    type="button"
-                    className={styles.eyeButton}
-                    onClick={() => setShowPassword(!showPassword)}
-                    disabled={isLoggingIn}
-                  >
-                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                  </button>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className={styles.button}
-                disabled={isLoggingIn || !email || !password}
-              >
-                {isLoggingIn ? 'Signing In...' : (
-                  <>
-                    Sign In
-                    <ArrowRight size={16} style={{ marginLeft: '0.5rem' }} />
-                  </>
-                )}
-              </button>
-
-              {process.env.NODE_ENV === 'development' && (
+                  disabled={isLoggingIn}
+                />
                 <button
                   type="button"
-                  onClick={handleDemoLogin}
+                    className={styles.eyeButton}
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={isLoggingIn}
+                >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+                className={styles.button}
+              disabled={isLoggingIn || !email || !password}
+              >
+                {isLoggingIn ? 'Signing In...' : (
+                <>
+                  Sign In
+                    <ArrowRight size={16} style={{ marginLeft: '0.5rem' }} />
+                </>
+              )}
+            </button>
+
+            {process.env.NODE_ENV === 'development' && (
+              <button
+                type="button"
+                onClick={handleDemoLogin}
                   style={{
                     width: '100%',
                     padding: '0.5rem',
@@ -293,11 +293,11 @@ function LoginPageContent() {
                     cursor: 'pointer',
                     transition: 'all 0.2s'
                   }}
-                >
-                  Fill Demo Credentials
-                </button>
-              )}
-            </form>
+              >
+                Fill Demo Credentials
+              </button>
+            )}
+          </form>
 
             <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #e2e8f0', textAlign: 'center' }}>
               <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.75rem' }}>
@@ -322,7 +322,7 @@ function LoginPageContent() {
         </div>
 
         <div className={styles.loginPrompt}>
-          Don&apos;t have an account?{' '}
+            Don&apos;t have an account?{' '}
           <Link href="/signup">Create an account</Link>
         </div>
 

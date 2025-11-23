@@ -61,3 +61,4 @@ The code is configured to:
 - Fall back to adding the production frontend URL automatically
 - Allow credentials (`CORS_ALLOW_CREDENTIALS = True`)
 
+

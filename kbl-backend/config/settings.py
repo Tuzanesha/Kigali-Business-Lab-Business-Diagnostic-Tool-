@@ -216,15 +216,21 @@ else:
     ]
 
 # Email settings
-# Use SMTP backend if EMAIL_BACKEND is set, otherwise use console in DEBUG mode
-# In production, EMAIL_BACKEND should be explicitly set to 'django.core.mail.backends.smtp.EmailBackend'
+# Priority: 1. EMAIL_BACKEND env var, 2. SendGrid if API key present, 3. SMTP if configured, 4. Console in DEBUG
 if os.getenv('EMAIL_BACKEND'):
     EMAIL_BACKEND = os.getenv('EMAIL_BACKEND')
+elif os.getenv('SENDGRID_API_KEY'):
+    # Use SendGrid if API key is present
+    EMAIL_BACKEND = 'config.email_backends.SendGridEmailBackend'
 elif DEBUG:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 else:
     # Production: default to SMTP if not explicitly set
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+
+# SendGrid Configuration (used when EMAIL_BACKEND is set to SendGrid)
+SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY', '')
+DEFAULT_FROM_NAME = os.getenv('DEFAULT_FROM_NAME', 'Kigali Business Lab')
 
 # SMTP Configuration (used when EMAIL_BACKEND is set to SMTP)
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
@@ -232,7 +238,9 @@ EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() in {'1', 'true', 'yes'}
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'noreply@kigalibusinesslab.rw')
+
+# Default FROM email - prioritize env var, then EMAIL_HOST_USER, then default
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'ishimwechloee@gmail.com')
 
 # Swagger settings
 SWAGGER_SETTINGS = {
