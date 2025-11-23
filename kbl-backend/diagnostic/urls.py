@@ -76,7 +76,9 @@ urlpatterns = [
     path('auth/verify-otp/', VerifyEmailOTPView.as_view()),
     
     # **CRITICAL FIX**: Public email verification via link (no auth required)
+    # Support both with and without trailing slash for compatibility
     path('auth/verify-email/', VerifyEmailLinkView.as_view(), name='verify-email-link'),
+    path('auth/verify-email', VerifyEmailLinkView.as_view(), name='verify-email-link-no-slash'),
     
     path('auth/status/', AuthStatusView.as_view()),
     path('auth/logout/', LogoutView.as_view()),

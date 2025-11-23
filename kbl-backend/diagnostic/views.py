@@ -1067,10 +1067,13 @@ class VerifyEmailLinkView(APIView):
         logger = logging.getLogger(__name__)
         logger.info(f"Email verification attempt - UID: {uidb64}, Code: {code}")
         
+        # Get frontend URL for redirects
+        frontend_url = os.environ.get('FRONTEND_URL') or os.environ.get('PUBLIC_BASE_URL', 'http://localhost:8085')
+        frontend_url = frontend_url.rstrip('/')
+        
         if not uidb64 or not code:
             logger.error("Missing UID or code in verification request")
-            # Redirect to frontend URL (not backend)
-            frontend_url = os.environ.get('FRONTEND_URL') or os.environ.get('PUBLIC_BASE_URL', 'http://localhost:8085')
+            # Redirect to verification status page with error
             return redirect(f"{frontend_url}/verification-status?verification=error&message=invalid_link")
         
         User = get_user_model()
@@ -1080,31 +1083,39 @@ class VerifyEmailLinkView(APIView):
             logger.info(f"Found user: {user.email} (ID: {user.id})")
         except (User.DoesNotExist, ValueError, TypeError, OverflowError) as e:
             logger.error(f"Invalid UID: {uidb64}, Error: {str(e)}")
-            # Redirect to frontend URL (not backend)
-            frontend_url = os.environ.get('FRONTEND_URL') or os.environ.get('PUBLIC_BASE_URL', 'http://localhost:8085')
+            # Redirect to verification status page with error
             return redirect(f"{frontend_url}/verification-status?verification=error&message=invalid_link")
             
         now = timezone.now()
+        # Try to find unused OTP first, then fall back to any unverified OTP
         otp = (
             EmailOTP.objects
-            .filter(user=user, code=code, is_verified=False)
-            .order_by('-created_at')  # Fixed: was '-created-at' (hyphen), should be '_created_at' (underscore)
+            .filter(user=user, code=code, is_verified=False, is_used=False)
+            .order_by('-created_at')
             .first()
         )
-        
-        # Redirect to frontend URL (not backend)
-        frontend_url = os.environ.get('FRONTEND_URL') or os.environ.get('PUBLIC_BASE_URL', 'http://localhost:8085')
+        # If no unused OTP found, try any unverified OTP (for backward compatibility)
+        if not otp:
+            otp = (
+                EmailOTP.objects
+                .filter(user=user, code=code, is_verified=False)
+                .order_by('-created_at')
+                .first()
+            )
         
         if not otp:
             if EmailOTP.objects.filter(user=user, is_verified=True).exists():
                 logger.info(f"User {user.email} already verified")
+                # Redirect to verification status page with success message
                 return redirect(f"{frontend_url}/verification-status?verification=success&message=already_verified")
             
             logger.error(f"No valid OTP found for user {user.email}")
+            # Redirect to verification status page with error
             return redirect(f"{frontend_url}/verification-status?verification=error&message=expired_link")
         
         if otp.expires_at < now:
             logger.error(f"OTP expired for user {user.email}")
+            # Redirect to verification status page with error
             return redirect(f"{frontend_url}/verification-status?verification=error&message=expired_link")
         
         # Mark as verified
@@ -1118,6 +1129,7 @@ class VerifyEmailLinkView(APIView):
         
         logger.info(f"Successfully verified email for user: {user.email}")
         
+        # Redirect to verification status page with success message
         return redirect(f"{frontend_url}/verification-status?verification=success&message=email_verified")
 class AuthStatusView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -1229,6 +1241,7 @@ class ResendVerificationEmail(APIView):
         logger = logging.getLogger(__name__)
         email = request.data.get('email')
         if not email:
+            logger.warning("Resend verification email request missing email parameter")
             return Response({"detail": "Email is required"}, status=400)
         
         email = email.strip().lower()
@@ -1237,6 +1250,7 @@ class ResendVerificationEmail(APIView):
         User = get_user_model()
         try:
             user = User.objects.get(email__iexact=email)
+            logger.info(f"Found user: {user.id} for email: {email}")
             
             # Check if already verified
             from .models import EmailOTP
@@ -1247,18 +1261,32 @@ class ResendVerificationEmail(APIView):
             # Resend verification email
             try:
                 base = compute_public_base_url(request)
-                logger.debug(f"Computed base URL: {base}")
+                logger.info(f"Computed base URL for resend: {base}")
+                logger.info(f"Request method: {request.method}, Request path: {request.path}")
+                
                 email_sent = send_verification_email(request, user, base)
                 
                 if email_sent:
                     logger.info(f"✅ Successfully resent verification email to {email}")
-                    return Response({"detail": "Verification email has been resent. Please check your inbox."})
+                    return Response({
+                        "detail": "Verification email has been resent. Please check your inbox.",
+                        "email": email,
+                        "sent": True
+                    })
                 else:
-                    logger.error(f"❌ Failed to send verification email to {email}")
-                    return Response({"detail": "Failed to send verification email. Please try again later."}, status=500)
+                    logger.error(f"❌ send_verification_email returned False for {email}")
+                    return Response({
+                        "detail": "Failed to send verification email. Please try again later.",
+                        "email": email,
+                        "sent": False
+                    }, status=500)
             except Exception as e:
-                logger.error(f"❌ Error sending verification email to {email}: {str(e)}", exc_info=True)
-                return Response({"detail": f"Error sending email: {str(e)}"}, status=500)
+                logger.error(f"❌ Exception sending verification email to {email}: {str(e)}", exc_info=True)
+                return Response({
+                    "detail": f"Error sending email: {str(e)}",
+                    "email": email,
+                    "error": str(e)
+                }, status=500)
                 
         except User.DoesNotExist:
             logger.warning(f"Resend verification requested for non-existent email: {email}")

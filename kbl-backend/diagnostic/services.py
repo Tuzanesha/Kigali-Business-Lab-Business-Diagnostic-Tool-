@@ -161,15 +161,26 @@ def send_verification_email(request, user, base_url: str) -> bool:
         uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
         
         # **PRODUCTION FIX**: Verification link should point to backend API directly
-        # In production (Render), use BACKEND_BASE_URL; in dev, use proxy URL
+        # Priority: 1. BACKEND_BASE_URL env var, 2. get_backend_base_url(), 3. compute from request
         backend_url = os.environ.get('BACKEND_BASE_URL')
         if not backend_url:
-            # Fallback to PUBLIC_BASE_URL or computed URL
-            backend_url = compute_public_base_url(request)
+            # Try to get backend URL from the helper function
+            try:
+                backend_url = get_backend_base_url(request)
+            except Exception:
+                # Fallback to computing from request
+                backend_url = compute_public_base_url(request)
+        
         # Ensure we're using backend URL, not frontend
-        if 'vercel.app' in backend_url or 'localhost:3000' in backend_url:
-            backend_url = os.environ.get('BACKEND_BASE_URL', backend_url)
-        verification_url = f"{backend_url.rstrip('/')}/api/auth/verify-email/?uid={uidb64}&code={code}"
+        # Check if URL looks like frontend (Vercel, localhost:3000, or frontend domain)
+        if any(x in backend_url for x in ['vercel.app', 'localhost:3000', 'kigali-business-lab-business-diagnostic.onrender.com']):
+            # Force use of BACKEND_BASE_URL if available, otherwise use production backend
+            backend_url = os.environ.get('BACKEND_BASE_URL') or 'https://business-diagnostic-tool.onrender.com'
+        
+        # Ensure URL doesn't have trailing slash before adding path
+        backend_url = backend_url.rstrip('/')
+        # Use URL without trailing slash to avoid double slashes
+        verification_url = f"{backend_url}/api/auth/verify-email?uid={uidb64}&code={code}"
         
         # Log the generated URL for debugging
         logger.debug(f"Base URL: {base_url}")
