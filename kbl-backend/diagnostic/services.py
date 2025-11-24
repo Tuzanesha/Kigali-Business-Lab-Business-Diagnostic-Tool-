@@ -272,13 +272,26 @@ def send_verification_email(request, user, base_url: str) -> bool:
             to=[user.email],
         )
         msg.attach_alternative(html_body, 'text/html')
-        msg.send(fail_silently=False)
         
-        logger.info(f"✅ Successfully sent verification email to {user.email}")
-        return True
+        # Send email with detailed logging
+        try:
+            msg.send(fail_silently=False)
+            logger.info(f"✅ Successfully sent verification email to {user.email}")
+            logger.info(f"   From: {from_email}")
+            logger.info(f"   To: {user.email}")
+            logger.info(f"   Subject: {subject}")
+            logger.info(f"   Verification URL: {verification_url}")
+            return True
+        except Exception as send_error:
+            logger.error(f"❌ Failed to send verification email to {user.email}: {str(send_error)}", exc_info=True)
+            logger.error(f"   SendGrid API Key configured: {bool(os.environ.get('SENDGRID_API_KEY'))}")
+            logger.error(f"   From email: {from_email}")
+            raise  # Re-raise to be caught by outer exception handler
         
     except Exception as e:
         logger.error(f"❌ Failed to send verification email: {str(e)}", exc_info=True)
+        logger.error(f"   User: {user.email if 'user' in locals() else 'Unknown'}")
+        logger.error(f"   Error type: {type(e).__name__}")
         return False
 
 

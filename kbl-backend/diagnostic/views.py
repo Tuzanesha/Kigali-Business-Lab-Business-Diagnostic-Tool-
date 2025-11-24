@@ -628,19 +628,45 @@ class AvatarUploadView(APIView):
     parser_classes = [MultiPartParser, FormParser]
 
     def post(self, request):
+        logger = logging.getLogger(__name__)
         file = request.FILES.get('avatar')
         if not file:
             return Response({'detail': 'avatar file is required'}, status=400)
-        u = request.user
-        u.avatar = file
-        u.save(update_fields=['avatar'])
-        # Build full URL for avatar
-        avatar_relative = getattr(u.avatar, 'url', '')
-        if avatar_relative.startswith('http'):
-            avatar_url = avatar_relative
-        else:
-            avatar_url = request.build_absolute_uri(avatar_relative)
-        return Response({'avatar_url': avatar_url})
+        
+        # Validate file size (max 5MB)
+        if file.size > 5 * 1024 * 1024:
+            return Response({'detail': 'File size exceeds 5MB limit'}, status=400)
+        
+        # Validate file type
+        allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+        if file.content_type not in allowed_types:
+            return Response({'detail': f'Invalid file type. Allowed: {", ".join(allowed_types)}'}, status=400)
+        
+        try:
+            u = request.user
+            # Delete old avatar if it exists
+            if u.avatar:
+                try:
+                    u.avatar.delete(save=False)
+                except Exception as e:
+                    logger.warning(f"Could not delete old avatar: {str(e)}")
+            
+            u.avatar = file
+            u.save(update_fields=['avatar'])
+            
+            # Build full URL for avatar
+            avatar_relative = getattr(u.avatar, 'url', '')
+            if avatar_relative.startswith('http'):
+                avatar_url = avatar_relative
+            else:
+                # Use request to build absolute URL
+                avatar_url = request.build_absolute_uri(avatar_relative)
+            
+            logger.info(f"Avatar uploaded successfully for user {u.id}: {avatar_url}")
+            return Response({'avatar_url': avatar_url})
+        except Exception as e:
+            logger.error(f"Error uploading avatar for user {request.user.id}: {str(e)}", exc_info=True)
+            return Response({'detail': f'Error uploading avatar: {str(e)}'}, status=500)
 
 
 class AvatarRemoveView(APIView):
