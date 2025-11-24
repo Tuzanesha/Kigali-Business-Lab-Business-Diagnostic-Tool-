@@ -50,10 +50,10 @@ else
     exit 1
 fi
 
-# Import questions
+# Import questions (only if they don't exist)
 echo ""
-echo "Importing assessment questions..."
-python manage.py import_questions || echo "⚠ Question import failed (non-critical)"
+echo "Checking and importing assessment questions..."
+python manage.py import_questions --skip-if-exists || echo "⚠ Question import failed (non-critical)"
 
 # Collect static files
 echo ""

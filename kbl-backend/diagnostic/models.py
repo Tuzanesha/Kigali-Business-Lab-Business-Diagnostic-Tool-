@@ -34,6 +34,10 @@ class Question(TimeStampedModel):
 
     class Meta:
         unique_together = ('category', 'number')
+        indexes = [
+            models.Index(fields=['category', 'number']),
+            models.Index(fields=['category']),
+        ]
 
     def __str__(self) -> str:
         return f"{self.category.name} {self.number}"

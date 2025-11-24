@@ -29,6 +29,17 @@ class Command(BaseCommand):
             default=str(Path.cwd() / "assessment_questions.json"),
             help="Path to assessment_questions.json",
         )
+        parser.add_argument(
+            "--force",
+            action='store_true',
+            help="Force import even if questions already exist",
+        )
+        parser.add_argument(
+            "--skip-if-exists",
+            action='store_true',
+            default=True,
+            help="Skip import if questions already exist (default: True)",
+        )
 
     def handle(self, *args, **options):
         path = Path(options["file"]).resolve()
@@ -69,14 +80,43 @@ class Command(BaseCommand):
             )
             return
 
-        # Ensure categories exist
+        # Check if questions already exist (unless --force is used)
+        force = options.get('force', False)
+        skip_if_exists = options.get('skip_if_exists', True) and not force
+        
+        if skip_if_exists:
+            existing_count = Question.objects.count()
+            if existing_count > 0:
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"Questions already exist in database ({existing_count} questions). "
+                        "Skipping import. Use --force to reimport."
+                    )
+                )
+                return
+
+        # Ensure categories exist (bulk operation)
         name_to_category: Dict[str, Category] = {}
+        categories_to_create = []
         for name in CATEGORY_ORDER:
-            cat, _ = Category.objects.get_or_create(name=name, defaults={"weight": 1.00})
-            name_to_category[name] = cat
+            try:
+                cat = Category.objects.get(name=name)
+                name_to_category[name] = cat
+            except Category.DoesNotExist:
+                categories_to_create.append(Category(name=name, weight=1.00))
+        
+        if categories_to_create:
+            Category.objects.bulk_create(categories_to_create, ignore_conflicts=True)
+            # Reload created categories
+            for cat in Category.objects.filter(name__in=[c.name for c in categories_to_create]):
+                name_to_category[cat.name] = cat
 
         created = 0
         updated = 0
+        
+        # Use bulk operations for better performance
+        questions_to_create = []
+        questions_to_update = []
 
         for q in questions:
             category_name = q["category_name"].strip()
@@ -87,22 +127,42 @@ class Command(BaseCommand):
 
             cat = name_to_category[category_name]
             number = q["number"].strip()
-            defaults = {
-                "priority": int(q.get("priority", 3)),
-                "text": q["text"].strip(),
-                "descriptors": q.get("descriptors", {}),
-                "evidence_prompt": q.get("evidence_prompt", ""),
-                "weight": int(q.get("weight", 4)),
-            }
-            obj, created_flag = Question.objects.update_or_create(
-                category=cat,
-                number=number,
-                defaults=defaults,
-            )
-            if created_flag:
-                created += 1
-            else:
+            
+            # Try to get existing question
+            try:
+                existing = Question.objects.get(category=cat, number=number)
+                # Update existing
+                existing.priority = int(q.get("priority", 3))
+                existing.text = q["text"].strip()
+                existing.descriptors = q.get("descriptors", {})
+                existing.evidence_prompt = q.get("evidence_prompt", "")
+                existing.weight = int(q.get("weight", 4))
+                questions_to_update.append(existing)
                 updated += 1
+            except Question.DoesNotExist:
+                # Create new
+                questions_to_create.append(Question(
+                    category=cat,
+                    number=number,
+                    priority=int(q.get("priority", 3)),
+                    text=q["text"].strip(),
+                    descriptors=q.get("descriptors", {}),
+                    evidence_prompt=q.get("evidence_prompt", ""),
+                    weight=int(q.get("weight", 4)),
+                ))
+                created += 1
+
+        # Bulk create new questions
+        if questions_to_create:
+            Question.objects.bulk_create(questions_to_create, ignore_conflicts=True)
+        
+        # Bulk update existing questions
+        if questions_to_update:
+            Question.objects.bulk_update(
+                questions_to_update,
+                ['priority', 'text', 'descriptors', 'evidence_prompt', 'weight'],
+                batch_size=100
+            )
 
         self.stdout.write(self.style.SUCCESS(f"Imported questions. Created: {created}, Updated: {updated}"))
 

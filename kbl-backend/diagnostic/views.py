@@ -59,6 +59,33 @@ class QuestionViewSet(viewsets.ModelViewSet):
         if category_name:
             qs = qs.filter(category__name__iexact=category_name)
         return qs
+    
+    @action(detail=False, methods=['get'], url_path='all')
+    def all_questions(self, request):
+        """
+        Get all questions grouped by category for better performance.
+        This avoids multiple API calls from the frontend.
+        Returns all questions in a single optimized query.
+        """
+        # Optimized query with select_related to avoid N+1 queries
+        questions = Question.objects.select_related('category').all().order_by('category__name', 'number')
+        
+        # Group questions by category efficiently
+        questions_by_category = {}
+        serializer = self.get_serializer()
+        
+        for question in questions:
+            category_name = question.category.name
+            if category_name not in questions_by_category:
+                questions_by_category[category_name] = []
+            # Serialize each question
+            questions_by_category[category_name].append(serializer.to_representation(question))
+        
+        return Response({
+            'questions_by_category': questions_by_category,
+            'total_questions': questions.count(),
+            'categories': list(questions_by_category.keys())
+        })
 
 
 class EnterpriseViewSet(viewsets.ModelViewSet):
@@ -802,10 +829,15 @@ class DeleteAccountView(APIView):
                     # If team_members table doesn't exist, delete user directly via SQL
                     logger.warning("team_members table doesn't exist, deleting user directly")
                     with connection.cursor() as cursor:
+                        # Get the actual user table name from the model
+                        user_table = user._meta.db_table
+                        logger.info(f"Attempting to delete user from table: {user_table}")
+                        # Use parameterized query with table name (table names can't be parameterized, but values can)
                         # Delete user directly, ignoring foreign key constraints on non-existent tables
-                        cursor.execute("DELETE FROM accounts_user WHERE id = %s", [user_id])
-                    logger.info(f"User {user_id} deleted via direct SQL")
+                        cursor.execute("DELETE FROM {} WHERE id = %s".format(user_table), [user_id])
+                    logger.info(f"User {user_id} deleted via direct SQL from table {user_table}")
                 else:
+                    # Re-raise if it's a different error
                     raise
             
             logger.info(f"Successfully deleted account for user {user_id} ({user_email})")
