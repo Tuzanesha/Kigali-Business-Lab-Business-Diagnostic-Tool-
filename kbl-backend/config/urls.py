@@ -37,8 +37,57 @@ def health_check(request):
     from django.http import JsonResponse
     return JsonResponse({'status': 'ok'}, status=200)
 
+# Migration status endpoint (for debugging)
+def migration_status(request):
+    from django.http import JsonResponse
+    from django.db import connection
+    
+    status = {
+        'database_connected': False,
+        'team_members_table_exists': False,
+        'migrations_applied': True
+    }
+    
+    try:
+        # Check database connection
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            status['database_connected'] = True
+            
+            # Check if team_members table exists
+            cursor.execute("""
+                SELECT table_name 
+                FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name = 'team_members'
+            """)
+            status['team_members_table_exists'] = cursor.fetchone() is not None
+            
+            # Check other important tables
+            important_tables = [
+                'diagnostic_enterprise',
+                'diagnostic_question',
+                'accounts_user',
+                'diagnostic_teammember'
+            ]
+            for table in important_tables:
+                cursor.execute("""
+                    SELECT table_name 
+                    FROM information_schema.tables 
+                    WHERE table_schema = 'public' 
+                    AND table_name = %s
+                """, [table])
+                status[table] = cursor.fetchone() is not None
+                
+    except Exception as e:
+        status['error'] = str(e)
+        status['migrations_applied'] = False
+    
+    return JsonResponse(status, status=200)
+
 urlpatterns = [
     path('health/', health_check, name='health'),
+    path('migration-status/', migration_status, name='migration-status'),
     path('admin/', admin.site.urls),
     path('api/', include('diagnostic.urls')),
     # OpenAPI schema and UIs

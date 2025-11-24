@@ -743,7 +743,22 @@ class DeleteAccountView(APIView):
         
         try:
             # Delete related data first to avoid foreign key constraint issues
-            from .models import Enterprise, QuestionResponse, ScoreSummary, EmailOTP, PhoneOTP, ActionItem, TeamMember
+            from .models import Enterprise, QuestionResponse, ScoreSummary, EmailOTP, PhoneOTP, ActionItem
+            from django.db import connection, ProgrammingError
+            
+            # Check if team_members table exists before trying to delete from it
+            team_members_table_exists = False
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute("""
+                        SELECT table_name 
+                        FROM information_schema.tables 
+                        WHERE table_schema = 'public' 
+                        AND table_name = 'team_members'
+                    """)
+                    team_members_table_exists = cursor.fetchone() is not None
+            except Exception:
+                pass  # If we can't check, we'll try to delete and catch the error
             
             # Delete user's enterprises and related data
             enterprises = Enterprise.objects.filter(owner=user)
@@ -752,18 +767,46 @@ class DeleteAccountView(APIView):
                 QuestionResponse.objects.filter(enterprise=enterprise).delete()
                 ScoreSummary.objects.filter(enterprise=enterprise).delete()
                 ActionItem.objects.filter(enterprise=enterprise).delete()
-                TeamMember.objects.filter(enterprise=enterprise).delete()
+                
+                # Only try to delete team members if table exists
+                if team_members_table_exists:
+                    try:
+                        from .models import TeamMember
+                        TeamMember.objects.filter(enterprise=enterprise).delete()
+                    except (ProgrammingError, Exception) as e:
+                        logger.warning(f"Could not delete team members (table may not exist): {str(e)}")
             
             # Delete user's other data
             EmailOTP.objects.filter(user=user).delete()
             PhoneOTP.objects.filter(user=user).delete()
             ActionItem.objects.filter(owner=user).delete()
             
+            # Try to delete team memberships if table exists
+            if team_members_table_exists:
+                try:
+                    from .models import TeamMember
+                    TeamMember.objects.filter(user=user).delete()
+                except (ProgrammingError, Exception) as e:
+                    logger.warning(f"Could not delete user team memberships (table may not exist): {str(e)}")
+            
             # Delete enterprises
             enterprises.delete()
             
             # Finally delete the user
-            user.delete()
+            # Use raw SQL to avoid Django's cascade deletion which tries to update team_members
+            # First, manually handle any foreign keys that might reference the user
+            try:
+                user.delete()
+            except ProgrammingError as e:
+                if 'team_members' in str(e):
+                    # If team_members table doesn't exist, delete user directly via SQL
+                    logger.warning("team_members table doesn't exist, deleting user directly")
+                    with connection.cursor() as cursor:
+                        # Delete user directly, ignoring foreign key constraints on non-existent tables
+                        cursor.execute("DELETE FROM accounts_user WHERE id = %s", [user_id])
+                    logger.info(f"User {user_id} deleted via direct SQL")
+                else:
+                    raise
             
             logger.info(f"Successfully deleted account for user {user_id} ({user_email})")
             return Response({'detail': 'Account deleted successfully'}, status=200)
