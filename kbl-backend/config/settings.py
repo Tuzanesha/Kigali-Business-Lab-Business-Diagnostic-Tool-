@@ -105,7 +105,7 @@ DATABASES = {
         'NAME': os.getenv('POSTGRES_DB', 'kbl_backend'),
         'USER': os.getenv('POSTGRES_USER', 'kbl_user'),
         'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'kblUser1234'),
-        'HOST': os.getenv('POSTGRES_HOST', 'db'),
+        'HOST': os.getenv('POSTGRES_HOST', 'localhost'),
         'PORT': os.getenv('POSTGRES_PORT', '5432'),
     }
 }
