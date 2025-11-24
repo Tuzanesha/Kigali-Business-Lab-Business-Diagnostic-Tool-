@@ -344,8 +344,33 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
     serializer_class = TeamMemberSerializer
 
     def get_queryset(self):
-        enterprises = Enterprise.objects.filter(owner=self.request.user)
-        return TeamMember.objects.filter(enterprise__in=enterprises).select_related('enterprise').order_by('created_at')
+        try:
+            enterprises = Enterprise.objects.filter(owner=self.request.user)
+            return TeamMember.objects.filter(enterprise__in=enterprises).select_related('enterprise').order_by('created_at')
+        except Exception as e:
+            # Handle case where team_members table doesn't exist yet
+            from django.db import connection, ProgrammingError
+            if isinstance(e, ProgrammingError) and 'team_members' in str(e):
+                logger = logging.getLogger(__name__)
+                logger.error("team_members table does not exist. Please run migrations: python manage.py migrate")
+                # Return empty queryset instead of crashing
+                return TeamMember.objects.none()
+            # For other errors, re-raise
+            raise
+
+    def list(self, request, *args, **kwargs):
+        """Override list to provide better error message if table doesn't exist"""
+        try:
+            return super().list(request, *args, **kwargs)
+        except Exception as e:
+            from django.db import ProgrammingError
+            if isinstance(e, ProgrammingError) and 'team_members' in str(e):
+                return Response({
+                    'detail': 'Team members feature is not available. Please run migrations: python manage.py migrate',
+                    'error': 'team_members_table_missing',
+                    'fix': 'Run migrations in Render Shell: python manage.py migrate'
+                }, status=503)  # Service Unavailable
+            raise
 
     def perform_create(self, serializer):
         import secrets
@@ -707,16 +732,48 @@ class DeleteAccountView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
+        logger = logging.getLogger(__name__)
         # Optionally require a confirmation phrase
-        _ = request.data.get('confirm', '')
+        confirm = request.data.get('confirm', '')
         user = request.user
         user_id = user.id
+        user_email = user.email
+        
+        logger.info(f"Account deletion requested for user {user_id} ({user_email})")
+        
         try:
+            # Delete related data first to avoid foreign key constraint issues
+            from .models import Enterprise, QuestionResponse, ScoreSummary, EmailOTP, PhoneOTP, ActionItem, TeamMember
+            
+            # Delete user's enterprises and related data
+            enterprises = Enterprise.objects.filter(owner=user)
+            for enterprise in enterprises:
+                # Delete enterprise-related data
+                QuestionResponse.objects.filter(enterprise=enterprise).delete()
+                ScoreSummary.objects.filter(enterprise=enterprise).delete()
+                ActionItem.objects.filter(enterprise=enterprise).delete()
+                TeamMember.objects.filter(enterprise=enterprise).delete()
+            
+            # Delete user's other data
+            EmailOTP.objects.filter(user=user).delete()
+            PhoneOTP.objects.filter(user=user).delete()
+            ActionItem.objects.filter(owner=user).delete()
+            
+            # Delete enterprises
+            enterprises.delete()
+            
+            # Finally delete the user
             user.delete()
-        except Exception:
-            logging.exception('Account deletion failed for user %s', user_id)
-            return Response({'detail': 'Failed to delete account'}, status=500)
-        return Response({'detail': 'Account deleted'})
+            
+            logger.info(f"Successfully deleted account for user {user_id} ({user_email})")
+            return Response({'detail': 'Account deleted successfully'}, status=200)
+            
+        except Exception as e:
+            logger.error(f'Account deletion failed for user {user_id}: {str(e)}', exc_info=True)
+            return Response({
+                'detail': 'Failed to delete account',
+                'error': str(e)
+            }, status=500)
 
 
 from .models import NotificationPreference, ScoreSummary, QuestionResponse, AssessmentSession
@@ -778,11 +835,23 @@ class EnterpriseProfileView(APIView):
             try:
                 e = Enterprise.objects.get(pk=pk, owner=request.user)
             except Enterprise.DoesNotExist:
-                return Response({'detail': 'Not found'}, status=404)
+                return Response({'detail': 'Enterprise not found'}, status=404)
         else:
             e = Enterprise.objects.filter(owner=request.user).order_by('id').first()
             if not e:
-                return Response({'detail': 'No enterprise yet'}, status=404)
+                # Return empty structure instead of 404 to allow frontend to handle gracefully
+                return Response({
+                    'id': None,
+                    'name': '',
+                    'location': '',
+                    'year_founded': None,
+                    'legal_structure': '',
+                    'description': '',
+                    'full_time_employees_total': None,
+                    'part_time_employees_total': None,
+                    'revenue_this_year': None,
+                    'exists': False
+                }, status=200)
         data = {
             'id': e.id,
             'name': e.name,
@@ -793,6 +862,7 @@ class EnterpriseProfileView(APIView):
             'full_time_employees_total': e.full_time_employees_total,
             'part_time_employees_total': e.part_time_employees_total,
             'revenue_this_year': e.revenue_this_year,
+            'exists': True
         }
         return Response(data)
 
