@@ -67,25 +67,52 @@ class QuestionViewSet(viewsets.ModelViewSet):
         This avoids multiple API calls from the frontend.
         Returns all questions in a single optimized query.
         """
-        # Optimized query with select_related to avoid N+1 queries
-        questions = Question.objects.select_related('category').all().order_by('category__name', 'number')
+        import time
+        start_time = time.time()
+        logger = logging.getLogger(__name__)
         
-        # Group questions by category efficiently
-        questions_by_category = {}
-        serializer = self.get_serializer()
-        
-        for question in questions:
-            category_name = question.category.name
-            if category_name not in questions_by_category:
-                questions_by_category[category_name] = []
-            # Serialize each question
-            questions_by_category[category_name].append(serializer.to_representation(question))
-        
-        return Response({
-            'questions_by_category': questions_by_category,
-            'total_questions': questions.count(),
-            'categories': list(questions_by_category.keys())
-        })
+        try:
+            # Optimized query with select_related to avoid N+1 queries
+            # Use iterator() for large datasets to reduce memory usage
+            questions = Question.objects.select_related('category').all().order_by('category__name', 'number')
+            
+            # Check if questions exist
+            question_count = questions.count()
+            if question_count == 0:
+                logger.warning("No questions found in database. Questions may need to be imported.")
+                return Response({
+                    'questions_by_category': {},
+                    'total_questions': 0,
+                    'categories': [],
+                    'message': 'No questions found. Please import questions.'
+                }, status=200)
+            
+            # Group questions by category efficiently
+            questions_by_category = {}
+            serializer = self.get_serializer()
+            
+            # Use iterator for better memory efficiency with large datasets
+            for question in questions.iterator(chunk_size=100):
+                category_name = question.category.name
+                if category_name not in questions_by_category:
+                    questions_by_category[category_name] = []
+                # Serialize each question
+                questions_by_category[category_name].append(serializer.to_representation(question))
+            
+            elapsed_time = time.time() - start_time
+            logger.info(f"Loaded {question_count} questions in {elapsed_time:.2f} seconds")
+            
+            return Response({
+                'questions_by_category': questions_by_category,
+                'total_questions': question_count,
+                'categories': list(questions_by_category.keys())
+            })
+        except Exception as e:
+            logger.error(f"Error loading questions: {str(e)}", exc_info=True)
+            return Response({
+                'error': 'Failed to load questions',
+                'detail': str(e)
+            }, status=500)
 
 
 class EnterpriseViewSet(viewsets.ModelViewSet):
@@ -371,18 +398,38 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
     serializer_class = TeamMemberSerializer
 
     def get_queryset(self):
+        from django.db import connection, ProgrammingError
+        logger = logging.getLogger(__name__)
+        
+        # Check if team_members table exists first
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    SELECT table_name 
+                    FROM information_schema.tables 
+                    WHERE table_schema = 'public' 
+                    AND table_name = 'team_members'
+                """)
+                table_exists = cursor.fetchone() is not None
+        except Exception as e:
+            logger.warning(f"Could not check if team_members table exists: {str(e)}")
+            table_exists = False
+        
+        if not table_exists:
+            logger.warning("team_members table does not exist. Please run migrations: python manage.py migrate")
+            # Return empty queryset instead of crashing
+            return TeamMember.objects.none()
+        
         try:
             enterprises = Enterprise.objects.filter(owner=self.request.user)
             return TeamMember.objects.filter(enterprise__in=enterprises).select_related('enterprise').order_by('created_at')
-        except Exception as e:
-            # Handle case where team_members table doesn't exist yet
-            from django.db import connection, ProgrammingError
-            if isinstance(e, ProgrammingError) and 'team_members' in str(e):
-                logger = logging.getLogger(__name__)
+        except ProgrammingError as e:
+            if 'team_members' in str(e):
                 logger.error("team_members table does not exist. Please run migrations: python manage.py migrate")
-                # Return empty queryset instead of crashing
                 return TeamMember.objects.none()
-            # For other errors, re-raise
+            raise
+        except Exception as e:
+            logger.error(f"Error fetching team members: {str(e)}")
             raise
 
     def list(self, request, *args, **kwargs):
@@ -770,8 +817,11 @@ class DeleteAccountView(APIView):
         
         try:
             # Delete related data first to avoid foreign key constraint issues
-            from .models import Enterprise, QuestionResponse, ScoreSummary, EmailOTP, PhoneOTP, ActionItem
-            from django.db import connection, ProgrammingError
+            from .models import (
+                Enterprise, QuestionResponse, ScoreSummary, EmailOTP, PhoneOTP, 
+                ActionItem, NotificationPreference
+            )
+            from django.db import connection, ProgrammingError, IntegrityError
             
             # Check if team_members table exists before trying to delete from it
             team_members_table_exists = False
@@ -786,6 +836,13 @@ class DeleteAccountView(APIView):
                     team_members_table_exists = cursor.fetchone() is not None
             except Exception:
                 pass  # If we can't check, we'll try to delete and catch the error
+            
+            # Delete NotificationPreference FIRST (OneToOne relationship)
+            try:
+                NotificationPreference.objects.filter(user=user).delete()
+                logger.info(f"Deleted notification preferences for user {user_id}")
+            except Exception as e:
+                logger.warning(f"Could not delete notification preferences: {str(e)}")
             
             # Delete user's enterprises and related data
             enterprises = Enterprise.objects.filter(owner=user)
@@ -820,24 +877,45 @@ class DeleteAccountView(APIView):
             enterprises.delete()
             
             # Finally delete the user
-            # Use raw SQL to avoid Django's cascade deletion which tries to update team_members
-            # First, manually handle any foreign keys that might reference the user
+            # Try Django's delete first (handles CASCADE properly)
             try:
                 user.delete()
-            except ProgrammingError as e:
-                if 'team_members' in str(e):
+                logger.info(f"User {user_id} deleted successfully via Django ORM")
+            except (ProgrammingError, IntegrityError) as e:
+                error_str = str(e)
+                if 'team_members' in error_str:
                     # If team_members table doesn't exist, delete user directly via SQL
-                    logger.warning("team_members table doesn't exist, deleting user directly")
+                    logger.warning("team_members table doesn't exist, deleting user directly via SQL")
+                    # Delete all remaining foreign key references first
                     with connection.cursor() as cursor:
+                        # Delete any remaining references manually
+                        try:
+                            cursor.execute("DELETE FROM diagnostic_notificationpreference WHERE user_id = %s", [user_id])
+                        except Exception:
+                            pass
                         # Get the actual user table name from the model
                         user_table = user._meta.db_table
                         logger.info(f"Attempting to delete user from table: {user_table}")
-                        # Use parameterized query with table name (table names can't be parameterized, but values can)
-                        # Delete user directly, ignoring foreign key constraints on non-existent tables
+                        # Delete user directly
                         cursor.execute("DELETE FROM {} WHERE id = %s".format(user_table), [user_id])
                     logger.info(f"User {user_id} deleted via direct SQL from table {user_table}")
+                elif 'foreign key' in error_str.lower() or 'constraint' in error_str.lower():
+                    # Handle other foreign key constraint violations
+                    logger.warning(f"Foreign key constraint violation: {error_str}")
+                    # Try to delete remaining references
+                    with connection.cursor() as cursor:
+                        # Delete notification preferences if still exists
+                        try:
+                            cursor.execute("DELETE FROM diagnostic_notificationpreference WHERE user_id = %s", [user_id])
+                        except Exception:
+                            pass
+                        # Try deleting user again
+                        user_table = user._meta.db_table
+                        cursor.execute("DELETE FROM {} WHERE id = %s".format(user_table), [user_id])
+                    logger.info(f"User {user_id} deleted after handling foreign key constraints")
                 else:
                     # Re-raise if it's a different error
+                    logger.error(f"Unexpected error during user deletion: {error_str}")
                     raise
             
             logger.info(f"Successfully deleted account for user {user_id} ({user_email})")
