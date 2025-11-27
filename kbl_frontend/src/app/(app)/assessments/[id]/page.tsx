@@ -358,4 +358,3 @@ export default function AssessmentPageController() {
     </div>
   );
 }
-}
