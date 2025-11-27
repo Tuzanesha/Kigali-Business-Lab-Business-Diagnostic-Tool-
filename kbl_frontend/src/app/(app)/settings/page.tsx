@@ -972,65 +972,112 @@ const NotificationsContent = () => {
 
 export default function SettingsPage() {
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-  const [isTeamMemberOnly, setIsTeamMemberOnly] = useState(false);
-  const [activeTab, setActiveTab] = useState('Profile');
+  const [isTeamMemberOnly, setIsTeamMemberOnly] = useState<boolean | null>(null); // null = checking, true = team member, false = owner
+  const [isCheckingRole, setIsCheckingRole] = useState(true);
   
-  // Check if user is team member only and set initial tab
+  // Set initial tab from URL params immediately (synchronously)
+  const getInitialTab = () => {
+    if (!searchParams) return 'Profile';
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'enterprise') return 'Enterprise Profile';
+    if (tabParam === 'team') return 'Team';
+    if (tabParam === 'notifications') return 'Notifications';
+    if (tabParam === 'account') return 'Account';
+    return 'Profile';
+  };
+  
+  const [activeTab, setActiveTab] = useState(getInitialTab());
+  
+  // Check if user is team member only (don't override tab)
   useEffect(() => {
     const checkTeamMemberStatus = async () => {
       try {
         const access = getAccessToken();
-        if (!access) return;
-        const portalData = await teamApi.getPortal(access);
-        // Check if user is team member only (not owner)
-        const isTeamMember = portalData.is_team_member_only === true || 
-          (portalData.is_owner === false && portalData.total_enterprises > 0);
-        setIsTeamMemberOnly(isTeamMember);
+        if (!access) {
+          setIsTeamMemberOnly(false);
+          setIsCheckingRole(false);
+          return;
+        }
         
-        // Set initial tab from URL, but only if allowed for user role
-        if (searchParams) {
-          const tabParam = searchParams.get('tab');
-          if (tabParam === 'enterprise' && !isTeamMember) {
-            setActiveTab('Enterprise Profile');
-          } else if (tabParam === 'team' && !isTeamMember) {
-            setActiveTab('Team');
-          } else if (tabParam === 'notifications') {
-            setActiveTab('Notifications');
-          } else if (tabParam === 'account') {
-            setActiveTab('Account');
-          } else {
-            setActiveTab('Profile');
+        // Try to access team portal - if it fails with is_owner, user is owner
+        try {
+          const portalData = await teamApi.getPortal(access);
+          // Check if user is team member only (not owner)
+          const isTeamMember = portalData.is_team_member_only === true || 
+            (portalData.is_owner === false && portalData.total_enterprises > 0);
+          setIsTeamMemberOnly(isTeamMember);
+          
+          // If team member tries to access restricted tab, redirect to Profile
+          if (isTeamMember) {
+            const restrictedTabs = ['Enterprise Profile', 'Team'];
+            if (restrictedTabs.includes(activeTab)) {
+              setActiveTab('Profile');
+            }
+          }
+        } catch (portalError: any) {
+          // If 403 with is_owner flag, user is owner (not team member only)
+          if (portalError?.status === 403 && portalError?.data?.is_owner) {
+            setIsTeamMemberOnly(false);
+            // Owner can access all tabs - don't override activeTab
+            setIsCheckingRole(false);
+            return;
+          }
+          // If other error, try checking if they can access enterprise profile
+          try {
+            await enterpriseApi.getProfile(access);
+            // If they can access enterprise profile, they're an owner
+            setIsTeamMemberOnly(false);
+          } catch {
+            // If they can't access enterprise profile either, might be team member
+            // But don't assume - default to false (owner)
+            setIsTeamMemberOnly(false);
           }
         }
       } catch (e: any) {
-        // If 403 with is_owner flag, user is owner (not team member only)
-        if (e?.status === 403 && e?.data?.is_owner) {
-          setIsTeamMemberOnly(false);
-          // Owner can access all tabs
-          if (searchParams?.get('tab') === 'enterprise') {
-            setActiveTab('Enterprise Profile');
-          } else if (searchParams?.get('tab') === 'team') {
-            setActiveTab('Team');
-          }
-        } else if (e?.status === 403 && e?.data?.redirect_to === '/team-portal') {
-          // If redirected to team portal, they're a team member
-          setIsTeamMemberOnly(true);
-          setActiveTab('Profile');
-        } else {
-          // Default to false (owner or not logged in)
-          setIsTeamMemberOnly(false);
-        }
+        // Default to false (owner or not logged in)
+        setIsTeamMemberOnly(false);
+      } finally {
+        setIsCheckingRole(false);
       }
     };
     checkTeamMemberStatus();
-  }, [searchParams]);
+  }, []); // Run once on mount
+  
+  // Redirect team members away from restricted tabs
+  useEffect(() => {
+    if (isTeamMemberOnly === true) {
+      const restrictedTabs = ['Enterprise Profile', 'Team'];
+      if (restrictedTabs.includes(activeTab)) {
+        setActiveTab('Profile');
+      }
+    }
+  }, [isTeamMemberOnly, activeTab]);
   
   // Team members only see Profile, Account, and Notifications
   // Owners see all tabs
   const allTabs = ['Profile', 'Account', 'Enterprise Profile', 'Team', 'Notifications'];
-  const tabs = isTeamMemberOnly 
-    ? allTabs.filter(tab => ['Profile', 'Account', 'Notifications'].includes(tab))
+  const allowedTabsForTeamMembers = ['Profile', 'Account', 'Notifications'];
+  
+  // Filter tabs based on user role - don't show tabs until we know the role
+  const tabs = isCheckingRole 
+    ? [] // Show no tabs while checking
+    : isTeamMemberOnly === true
+    ? allTabs.filter(tab => allowedTabsForTeamMembers.includes(tab))
     : allTabs;
+
+  // Show loading state while checking role
+  if (isCheckingRole) {
+    return (
+      <div className="settings-page">
+        <header className="page-header">
+          <h1 className="page-title">SETTINGS</h1>
+        </header>
+        <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+          Loading...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="settings-page">
@@ -1041,7 +1088,13 @@ export default function SettingsPage() {
             <button
               key={tab}
               className={`tab-button ${activeTab === tab ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => {
+                // Prevent team members from clicking restricted tabs
+                if (isTeamMemberOnly === true && !allowedTabsForTeamMembers.includes(tab)) {
+                  return;
+                }
+                setActiveTab(tab);
+              }}
             >
               {tab}
             </button>
@@ -1049,10 +1102,11 @@ export default function SettingsPage() {
         </nav>
       </header>
       <main className="tab-content">
+        {/* Only render content for allowed tabs */}
         {activeTab === 'Profile' && <ProfileContent />}
         {activeTab === 'Account' && <AccountContent />}
-        {activeTab === 'Enterprise Profile' && <EnterpriseProfileContent />}
-        {activeTab === 'Team' && <TeamContent />}
+        {isTeamMemberOnly !== true && activeTab === 'Enterprise Profile' && <EnterpriseProfileContent />}
+        {isTeamMemberOnly !== true && activeTab === 'Team' && <TeamContent />}
         {activeTab === 'Notifications' && <NotificationsContent />}
       </main>
     </div>
