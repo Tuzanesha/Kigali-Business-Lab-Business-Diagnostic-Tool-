@@ -13,6 +13,7 @@ import {
   ClipboardCheck,
   Settings,
   LogOut,
+  Users,
 } from 'lucide-react';
 import '../../styles/sidebar.css';
 
@@ -25,6 +26,7 @@ const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/assessments', icon: FileText, label: 'Assessments' },
   { href: '/action-plan', icon: ClipboardCheck, label: 'Action Plan' },
+  { href: '/team-portal', icon: Users, label: 'Team Portal' },
   { href: '/settings', icon: Settings, label: 'Settings' },
 ];
 

@@ -3,10 +3,10 @@
 import React, { useEffect, useState } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import toast from 'react-hot-toast';
-import { Plus, Calendar, Check } from 'lucide-react';
+import { Plus, Calendar, Check, X, User, Users, TrendingUp, MessageSquare, FileText } from 'lucide-react';
 import './action-plan.css';
 import Link from 'next/link';
-import { actionItemApi } from '@/lib/api';
+import { actionItemApi, teamApi, enterpriseApi, getAccessToken } from '@/lib/api';
 
 const PriorityTag = ({ priority }: { priority: 'HIGH' | 'MEDIUM' | 'LOW' }) => {
   const styles = {
@@ -45,8 +45,16 @@ const UserAvatar = ({ initials }: { initials: string }) => {
   );
 };
 
-type Task = { id: number; title: string; source: string; date: string; user: string; priority: 'HIGH'|'MEDIUM'|'LOW' };
+type Task = { id: number; title: string; source: string; date: string; user: string; priority: 'HIGH'|'MEDIUM'|'LOW'; assigned_to_user_id?: number; progress_percentage?: number };
 type Columns = { todo: Task[]; inprogress: Task[]; completed: Task[] };
+
+interface TeamMember {
+  id: number;
+  email: string;
+  name: string;
+  role: string;
+  is_owner: boolean;
+}
 
 const columnTitles = {
   todo: 'TO DO',
@@ -54,25 +62,135 @@ const columnTitles = {
   completed: 'COMPLETED',
 } as const;
 
+// Task Detail Modal Component
+const TaskDetailModal = ({ 
+  task, 
+  onClose, 
+  teamMembers,
+  onAssign,
+  onViewDetails
+}: { 
+  task: Task; 
+  onClose: () => void; 
+  teamMembers: TeamMember[];
+  onAssign: (taskId: number, userId: number | null) => void;
+  onViewDetails: (taskId: number) => void;
+}) => {
+  const [selectedMember, setSelectedMember] = useState<number | ''>(task.assigned_to_user_id || '');
+
+  const handleAssign = () => {
+    onAssign(task.id, selectedMember === '' ? null : selectedMember);
+  };
+
+  return (
+    <div className="task-modal-overlay" onClick={onClose}>
+      <div className="task-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="task-modal-header">
+          <h2>{task.title}</h2>
+          <button className="close-modal-btn" onClick={onClose}>
+            <X size={20} />
+          </button>
+        </div>
+        
+        <div className="task-modal-content">
+          <div className="task-modal-info">
+            <div className="info-row">
+              <span className="info-label">Source:</span>
+              <span className="info-value">{task.source || 'Not specified'}</span>
+            </div>
+            <div className="info-row">
+              <span className="info-label">Priority:</span>
+              <PriorityTag priority={task.priority} />
+            </div>
+            <div className="info-row">
+              <span className="info-label">Due Date:</span>
+              <span className="info-value">{task.date || 'Not set'}</span>
+            </div>
+            {task.progress_percentage !== undefined && (
+              <div className="info-row">
+                <span className="info-label">Progress:</span>
+                <div className="progress-indicator">
+                  <div className="progress-bar-small">
+                    <div className="progress-fill-small" style={{ width: `${task.progress_percentage}%` }} />
+                  </div>
+                  <span>{task.progress_percentage}%</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="assign-section">
+            <label className="assign-label">
+              <Users size={16} />
+              Assign to Team Member
+            </label>
+            <select 
+              value={selectedMember} 
+              onChange={(e) => setSelectedMember(e.target.value === '' ? '' : Number(e.target.value))}
+              className="assign-select"
+            >
+              <option value="">Unassigned</option>
+              {teamMembers.map((member) => (
+                <option key={member.id} value={member.id}>
+                  {member.name} ({member.role})
+                </option>
+              ))}
+            </select>
+            <button onClick={handleAssign} className="assign-btn">
+              <User size={16} />
+              {selectedMember === '' ? 'Remove Assignment' : 'Assign'}
+            </button>
+          </div>
+        </div>
+
+        <div className="task-modal-footer">
+          <button onClick={() => onViewDetails(task.id)} className="view-details-btn">
+            <TrendingUp size={16} />
+            View Full Details & Notes
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function ActionPlanPage() {
   const [columns, setColumns] = useState<Columns>({ todo: [], inprogress: [], completed: [] });
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [enterpriseId, setEnterpriseId] = useState<number | null>(null);
 
   useEffect(() => {
     const load = async () => {
       const id = toast.loading('Loading action plan...');
       try {
-        const accessToken = localStorage.getItem('accessToken');
+        const accessToken = getAccessToken();
         if (!accessToken) { 
           toast.dismiss(id); 
           toast.error('Please log in to view action items');
           return; 
         }
+        
+        // Load action board
         const board = await actionItemApi.getBoard(accessToken);
         setColumns({
           todo: (board?.todo || []) as Task[],
           inprogress: (board?.inprogress || []) as Task[],
           completed: (board?.completed || []) as Task[],
         });
+        
+        // Load enterprise profile to get team members
+        try {
+          const profile = await enterpriseApi.getProfile(accessToken);
+          if (profile?.id) {
+            setEnterpriseId(profile.id);
+            const members = await teamApi.getEnterpriseMembers(accessToken, profile.id);
+            setTeamMembers(members?.members || []);
+          }
+        } catch {
+          // No enterprise profile, that's okay
+        }
+        
         toast.success('Action plan loaded', { id, duration: 2000 });
       } catch (e:any) {
         toast.error(e?.message || 'Failed to load action plan', { id, duration: 4000 });
@@ -80,6 +198,32 @@ export default function ActionPlanPage() {
     };
     load();
   }, []);
+
+  const handleAssign = async (taskId: number, userId: number | null) => {
+    const accessToken = getAccessToken();
+    if (!accessToken) return;
+    
+    const tid = toast.loading('Assigning...');
+    try {
+      await actionItemApi.assign(accessToken, taskId, userId);
+      toast.success('Task assigned successfully', { id: tid });
+      setSelectedTask(null);
+      
+      // Reload the board
+      const board = await actionItemApi.getBoard(accessToken);
+      setColumns({
+        todo: (board?.todo || []) as Task[],
+        inprogress: (board?.inprogress || []) as Task[],
+        completed: (board?.completed || []) as Task[],
+      });
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to assign task', { id: tid });
+    }
+  };
+
+  const handleViewDetails = (taskId: number) => {
+    window.location.href = `/team-portal/action/${taskId}`;
+  };
 
   const onDragEnd = async (result: DropResult) => {
     if (!result.destination) return;
@@ -168,10 +312,19 @@ export default function ActionPlanPage() {
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
+                            onClick={() => setSelectedTask(task)}
                           >
                             <PriorityTag priority={task.priority as 'HIGH' | 'MEDIUM' | 'LOW'} />
                             <h3 className="card-title">{task.title}</h3>
                             <p className="card-source">{task.source}</p>
+                            {task.progress_percentage !== undefined && task.progress_percentage > 0 && (
+                              <div className="card-progress">
+                                <div className="card-progress-bar">
+                                  <div className="card-progress-fill" style={{ width: `${task.progress_percentage}%` }} />
+                                </div>
+                                <span>{task.progress_percentage}%</span>
+                              </div>
+                            )}
                             <div className="card-footer">
                               <div className="card-date">
                                 <Calendar size={14} />
@@ -195,6 +348,17 @@ export default function ActionPlanPage() {
           ))}
         </div>
       </DragDropContext>
+
+      {/* Task Detail Modal */}
+      {selectedTask && (
+        <TaskDetailModal 
+          task={selectedTask}
+          onClose={() => setSelectedTask(null)}
+          teamMembers={teamMembers}
+          onAssign={handleAssign}
+          onViewDetails={handleViewDetails}
+        />
+      )}
     </div>
   );
 }

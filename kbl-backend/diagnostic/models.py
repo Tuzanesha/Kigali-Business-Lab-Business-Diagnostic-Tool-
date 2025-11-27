@@ -176,18 +176,68 @@ class ActionItem(TimeStampedModel):
     owner = models.ForeignKey(User, related_name='action_items', on_delete=models.CASCADE)
     enterprise = models.ForeignKey(Enterprise, related_name='action_items', on_delete=models.CASCADE, null=True, blank=True)
     title = models.CharField(max_length=255)
+    description = models.TextField(blank=True, help_text='Detailed description of the action item')
     source = models.CharField(max_length=255, blank=True)
     priority = models.CharField(max_length=6, choices=PRIORITY_CHOICES, default=PRIORITY_MEDIUM)
     due_date = models.DateField(null=True, blank=True)
-    assigned_to = models.CharField(max_length=128, blank=True, help_text='Assignee initials or identifier')
+    assigned_to = models.CharField(max_length=128, blank=True, help_text='Assignee initials or identifier (legacy)')
+    assigned_to_user = models.ForeignKey(
+        User, null=True, blank=True, 
+        related_name='assigned_action_items', 
+        on_delete=models.SET_NULL,
+        help_text='Team member assigned to this action'
+    )
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_TODO)
     order = models.IntegerField(default=0, help_text='Position within the status column')
+    progress_percentage = models.IntegerField(default=0, help_text='Percentage of completion (0-100)')
+    completed_at = models.DateTimeField(null=True, blank=True, help_text='When the action was marked complete')
+    completed_by = models.ForeignKey(
+        User, null=True, blank=True,
+        related_name='completed_action_items',
+        on_delete=models.SET_NULL,
+        help_text='User who marked this action as complete'
+    )
 
     class Meta:
         ordering = ['status', 'order', 'id']
 
     def __str__(self) -> str:
         return f"{self.title} ({self.status})"
+
+
+class ActionItemNote(TimeStampedModel):
+    """Notes/updates added to an action item by team members."""
+    action_item = models.ForeignKey(ActionItem, related_name='notes', on_delete=models.CASCADE)
+    author = models.ForeignKey(User, related_name='action_notes', on_delete=models.CASCADE)
+    content = models.TextField()
+    progress_update = models.IntegerField(null=True, blank=True, help_text='Progress percentage at time of note')
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self) -> str:
+        return f"Note by {self.author.email} on {self.action_item.title}"
+
+
+def action_document_upload_path(instance: 'ActionItemDocument', filename: str) -> str:
+    return f"action_documents/{instance.action_item_id}/{filename}"
+
+
+class ActionItemDocument(TimeStampedModel):
+    """Documents uploaded to an action item."""
+    action_item = models.ForeignKey(ActionItem, related_name='documents', on_delete=models.CASCADE)
+    uploaded_by = models.ForeignKey(User, related_name='uploaded_action_documents', on_delete=models.CASCADE)
+    file = models.FileField(upload_to=action_document_upload_path)
+    filename = models.CharField(max_length=255)
+    file_type = models.CharField(max_length=100, blank=True)
+    file_size = models.IntegerField(default=0, help_text='File size in bytes')
+    description = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self) -> str:
+        return f"{self.filename} on {self.action_item.title}"
 
 
 class TeamMember(TimeStampedModel):

@@ -32,9 +32,18 @@ from .views import (
     AssessmentSessionDeleteView,
     ResendVerificationEmail,
     EmailTokenObtainPairView,
-    VerifyEmailLinkView,  # Add this import
-    SendEmailOTPView,     # Add this import
-    VerifyEmailOTPView,   # Add this import
+    VerifyEmailLinkView,
+    SendEmailOTPView,
+    VerifyEmailOTPView,
+    # Team Member Portal Views
+    TeamMemberPortalView,
+    ActionItemDetailView,
+    ActionItemUpdateProgressView,
+    ActionItemAddNoteView,
+    ActionItemUploadDocumentView,
+    EnterpriseActionItemsView,
+    AssignActionItemView,
+    EnterpriseTeamMembersView,
 )
 
 router = DefaultRouter()
@@ -91,4 +100,14 @@ urlpatterns = [
     
     # Resend verification email
     path('auth/resend-verification-email/', ResendVerificationEmail.as_view(), name='resend-verification-email'),
+    
+    # Team Member Portal endpoints
+    path('team-portal/', TeamMemberPortalView.as_view(), name='team-member-portal'),
+    path('action-items/<int:pk>/detail/', ActionItemDetailView.as_view(), name='action-item-detail'),
+    path('action-items/<int:pk>/progress/', ActionItemUpdateProgressView.as_view(), name='action-item-progress'),
+    path('action-items/<int:pk>/notes/', ActionItemAddNoteView.as_view(), name='action-item-add-note'),
+    path('action-items/<int:pk>/documents/', ActionItemUploadDocumentView.as_view(), name='action-item-upload-doc'),
+    path('action-items/<int:pk>/assign/', AssignActionItemView.as_view(), name='action-item-assign'),
+    path('enterprise/<int:enterprise_id>/action-items/', EnterpriseActionItemsView.as_view(), name='enterprise-action-items'),
+    path('enterprise/<int:enterprise_id>/team-members/', EnterpriseTeamMembersView.as_view(), name='enterprise-team-members'),
 ]

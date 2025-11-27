@@ -330,18 +330,31 @@ class ActionItemViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def board(self, request):
-        items = ActionItem.objects.filter(owner=request.user).order_by('status', 'order', 'id')
+        items = ActionItem.objects.filter(owner=request.user).select_related('assigned_to_user').order_by('status', 'order', 'id')
         def to_card(it: ActionItem):
-            # Convert assigned_to (email) to initials if it's an email
-            user_display = it.assigned_to or ''
-            if '@' in user_display:
-                # Extract initials from email (e.g., "john.doe@example.com" -> "JD")
-                parts = user_display.split('@')[0].split('.')
-                if len(parts) >= 2:
-                    initials = (parts[0][0] + parts[1][0]).upper()
+            # Get user display from assigned_to_user or legacy assigned_to field
+            user_display = ''
+            assigned_user_id = None
+            
+            if it.assigned_to_user:
+                assigned_user_id = it.assigned_to_user.id
+                first = it.assigned_to_user.first_name or ''
+                last = it.assigned_to_user.last_name or ''
+                if first and last:
+                    user_display = (first[0] + last[0]).upper()
+                elif first:
+                    user_display = first[:2].upper()
                 else:
-                    initials = user_display[:2].upper()
-                user_display = initials
+                    user_display = it.assigned_to_user.email[:2].upper()
+            elif it.assigned_to:
+                # Fallback to legacy assigned_to field
+                user_display = it.assigned_to
+                if '@' in user_display:
+                    parts = user_display.split('@')[0].split('.')
+                    if len(parts) >= 2:
+                        user_display = (parts[0][0] + parts[1][0]).upper()
+                    else:
+                        user_display = user_display[:2].upper()
             
             return {
                 'id': it.id,
@@ -350,6 +363,8 @@ class ActionItemViewSet(viewsets.ModelViewSet):
                 'date': it.due_date.isoformat() if it.due_date else '',
                 'user': user_display,
                 'priority': it.priority,
+                'progress_percentage': it.progress_percentage,
+                'assigned_to_user_id': assigned_user_id,
             }
         out = {k: [] for k in [ActionItem.STATUS_TODO, ActionItem.STATUS_INPROGRESS, ActionItem.STATUS_COMPLETED]}
         for it in items:
@@ -532,9 +547,13 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
             except TeamMember.DoesNotExist:
                 return Response({'detail': 'Invalid or expired token'}, status=400)
         
-        # For POST requests, process the acceptance
+        # For POST requests, process the acceptance with password setup
         elif request.method == 'POST':
             token = (request.data.get('token') or '').strip()
+            password = request.data.get('password', '').strip()
+            confirm_password = request.data.get('confirm_password', '').strip()
+            full_name = request.data.get('full_name', '').strip()
+            
             if not token:
                 return Response({'detail': 'Token is required'}, status=400)
                 
@@ -547,21 +566,68 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
                 if member.invitation_expires_at and member.invitation_expires_at < timezone.now():
                     return Response({'detail': 'Invitation has expired'}, status=400)
                 
-                # If user is already registered, link them
-                if request.user.is_authenticated:
-                    member.user = request.user
+                User = get_user_model()
+                user = None
                 
-                # Update the member status to active
+                # Check if user already exists with this email
+                existing_user = User.objects.filter(email__iexact=member.email).first()
+                
+                if existing_user:
+                    # User already exists, just link them
+                    user = existing_user
+                elif password:
+                    # Create a new user account
+                    if len(password) < 8:
+                        return Response({'detail': 'Password must be at least 8 characters'}, status=400)
+                    if password != confirm_password:
+                        return Response({'detail': 'Passwords do not match'}, status=400)
+                    
+                    first_name = full_name.split(' ')[0] if full_name else ''
+                    last_name = ' '.join(full_name.split(' ')[1:]) if ' ' in full_name else ''
+                    
+                    user = User.objects.create_user(
+                        email=member.email,
+                        password=password,
+                        username=member.email,
+                        first_name=first_name,
+                        last_name=last_name
+                    )
+                    
+                    # Auto-verify email since they came from invitation
+                    from .models import EmailOTP
+                    EmailOTP.objects.create(
+                        user=user,
+                        code='INVITE_VERIFIED',
+                        expires_at=timezone.now() + timedelta(days=365),
+                        is_verified=True,
+                        is_used=True
+                    )
+                else:
+                    return Response({
+                        'detail': 'Password is required for new accounts',
+                        'needs_password': True
+                    }, status=400)
+                
+                # Link user to team member
+                member.user = user
                 member.status = TeamMember.STATUS_ACTIVE
                 member.accepted_at = timezone.now()
+                member.invitation_token = None  # Clear token after use
                 member.save()
                 
+                # Generate JWT tokens for immediate login
+                from rest_framework_simplejwt.tokens import RefreshToken
+                refresh = RefreshToken.for_user(user)
+                
                 return Response({
-                    'detail': 'Invitation accepted successfully',
+                    'detail': 'Invitation accepted successfully! You are now logged in.',
                     'enterprise_id': member.enterprise_id,
                     'enterprise_name': member.enterprise.name,
-                    'is_authenticated': request.user.is_authenticated,
-                    'redirect_url': '/login/' if not request.user.is_authenticated else f'/enterprise/{member.enterprise_id}/'
+                    'user_id': user.id,
+                    'email': user.email,
+                    'access': str(refresh.access_token),
+                    'refresh': str(refresh),
+                    'redirect_url': '/team-portal/'
                 })
                 
             except TeamMember.DoesNotExist:
@@ -1748,6 +1814,516 @@ Kigali Business Lab Team
                 'detail': f'Failed to send test notification: {str(e)}',
                 'error': str(e)
             }, status=500)
+
+
+# ============================================
+# Team Member Portal Views
+# ============================================
+
+class TeamMemberPortalView(APIView):
+    """Get team member portal data - their enterprises and assigned action items."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from .models import TeamMember, ActionItem, Enterprise
+        
+        user = request.user
+        
+        # Get all enterprises where this user is a team member
+        memberships = TeamMember.objects.filter(
+            user=user, 
+            status=TeamMember.STATUS_ACTIVE
+        ).select_related('enterprise')
+        
+        enterprises_data = []
+        for membership in memberships:
+            enterprise = membership.enterprise
+            
+            # Get action items assigned to this user for this enterprise
+            assigned_items = ActionItem.objects.filter(
+                enterprise=enterprise,
+                assigned_to_user=user
+            ).order_by('status', '-priority', 'due_date')
+            
+            items_data = [{
+                'id': item.id,
+                'title': item.title,
+                'description': item.description,
+                'source': item.source,
+                'priority': item.priority,
+                'status': item.status,
+                'due_date': item.due_date.isoformat() if item.due_date else None,
+                'progress_percentage': item.progress_percentage,
+                'created_at': item.created_at.isoformat(),
+                'notes_count': item.notes.count(),
+                'documents_count': item.documents.count()
+            } for item in assigned_items]
+            
+            enterprises_data.append({
+                'enterprise_id': enterprise.id,
+                'enterprise_name': enterprise.name,
+                'role': membership.role,
+                'joined_at': membership.accepted_at.isoformat() if membership.accepted_at else None,
+                'assigned_actions': items_data,
+                'total_assigned': len(items_data),
+                'completed': len([i for i in items_data if i['status'] == 'completed']),
+                'in_progress': len([i for i in items_data if i['status'] == 'inprogress']),
+                'todo': len([i for i in items_data if i['status'] == 'todo'])
+            })
+        
+        return Response({
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'full_name': f"{user.first_name} {user.last_name}".strip() or user.email
+            },
+            'enterprises': enterprises_data,
+            'total_enterprises': len(enterprises_data)
+        })
+
+
+class ActionItemDetailView(APIView):
+    """Get/update a single action item with notes and documents."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        from .models import ActionItem, ActionItemNote, ActionItemDocument
+        
+        try:
+            item = ActionItem.objects.select_related(
+                'owner', 'enterprise', 'assigned_to_user', 'completed_by'
+            ).prefetch_related('notes__author', 'documents__uploaded_by').get(pk=pk)
+            
+            # Check permission - owner, assigned user, or team member of enterprise
+            if item.owner != request.user and item.assigned_to_user != request.user:
+                from .models import TeamMember
+                is_team_member = TeamMember.objects.filter(
+                    enterprise=item.enterprise,
+                    user=request.user,
+                    status=TeamMember.STATUS_ACTIVE
+                ).exists()
+                if not is_team_member:
+                    return Response({'detail': 'Permission denied'}, status=403)
+            
+            notes_data = [{
+                'id': note.id,
+                'content': note.content,
+                'progress_update': note.progress_update,
+                'author': {
+                    'id': note.author.id,
+                    'email': note.author.email,
+                    'name': f"{note.author.first_name} {note.author.last_name}".strip() or note.author.email
+                },
+                'created_at': note.created_at.isoformat()
+            } for note in item.notes.all()]
+            
+            docs_data = [{
+                'id': doc.id,
+                'filename': doc.filename,
+                'file_type': doc.file_type,
+                'file_size': doc.file_size,
+                'description': doc.description,
+                'file_url': request.build_absolute_uri(doc.file.url) if doc.file else None,
+                'uploaded_by': {
+                    'id': doc.uploaded_by.id,
+                    'name': f"{doc.uploaded_by.first_name} {doc.uploaded_by.last_name}".strip() or doc.uploaded_by.email
+                },
+                'created_at': doc.created_at.isoformat()
+            } for doc in item.documents.all()]
+            
+            return Response({
+                'id': item.id,
+                'title': item.title,
+                'description': item.description,
+                'source': item.source,
+                'priority': item.priority,
+                'status': item.status,
+                'due_date': item.due_date.isoformat() if item.due_date else None,
+                'progress_percentage': item.progress_percentage,
+                'created_at': item.created_at.isoformat(),
+                'updated_at': item.updated_at.isoformat(),
+                'completed_at': item.completed_at.isoformat() if item.completed_at else None,
+                'owner': {
+                    'id': item.owner.id,
+                    'email': item.owner.email,
+                    'name': f"{item.owner.first_name} {item.owner.last_name}".strip() or item.owner.email
+                },
+                'enterprise': {
+                    'id': item.enterprise.id if item.enterprise else None,
+                    'name': item.enterprise.name if item.enterprise else None
+                },
+                'assigned_to': {
+                    'id': item.assigned_to_user.id if item.assigned_to_user else None,
+                    'email': item.assigned_to_user.email if item.assigned_to_user else None,
+                    'name': (f"{item.assigned_to_user.first_name} {item.assigned_to_user.last_name}".strip() 
+                             or item.assigned_to_user.email) if item.assigned_to_user else item.assigned_to
+                },
+                'completed_by': {
+                    'id': item.completed_by.id if item.completed_by else None,
+                    'name': (f"{item.completed_by.first_name} {item.completed_by.last_name}".strip() 
+                             or item.completed_by.email) if item.completed_by else None
+                },
+                'notes': notes_data,
+                'documents': docs_data
+            })
+        except ActionItem.DoesNotExist:
+            return Response({'detail': 'Action item not found'}, status=404)
+
+
+class ActionItemUpdateProgressView(APIView):
+    """Update action item progress and status."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        from .models import ActionItem, ActionItemNote
+        
+        try:
+            item = ActionItem.objects.get(pk=pk)
+            
+            # Check permission
+            if item.owner != request.user and item.assigned_to_user != request.user:
+                from .models import TeamMember
+                is_team_member = TeamMember.objects.filter(
+                    enterprise=item.enterprise,
+                    user=request.user,
+                    status=TeamMember.STATUS_ACTIVE
+                ).exists()
+                if not is_team_member:
+                    return Response({'detail': 'Permission denied'}, status=403)
+            
+            # Update fields
+            progress = request.data.get('progress_percentage')
+            new_status = request.data.get('status')
+            note_content = request.data.get('note', '').strip()
+            
+            if progress is not None:
+                item.progress_percentage = min(100, max(0, int(progress)))
+            
+            if new_status and new_status in [s[0] for s in ActionItem.STATUS_CHOICES]:
+                old_status = item.status
+                item.status = new_status
+                
+                # If marking as completed
+                if new_status == ActionItem.STATUS_COMPLETED and old_status != ActionItem.STATUS_COMPLETED:
+                    item.completed_at = timezone.now()
+                    item.completed_by = request.user
+                    item.progress_percentage = 100
+                elif new_status != ActionItem.STATUS_COMPLETED:
+                    item.completed_at = None
+                    item.completed_by = None
+            
+            item.save()
+            
+            # Add note if provided
+            if note_content:
+                ActionItemNote.objects.create(
+                    action_item=item,
+                    author=request.user,
+                    content=note_content,
+                    progress_update=item.progress_percentage
+                )
+            
+            return Response({
+                'detail': 'Action item updated successfully',
+                'id': item.id,
+                'status': item.status,
+                'progress_percentage': item.progress_percentage,
+                'completed_at': item.completed_at.isoformat() if item.completed_at else None
+            })
+        except ActionItem.DoesNotExist:
+            return Response({'detail': 'Action item not found'}, status=404)
+
+
+class ActionItemAddNoteView(APIView):
+    """Add a note to an action item."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        from .models import ActionItem, ActionItemNote
+        
+        try:
+            item = ActionItem.objects.get(pk=pk)
+            
+            # Check permission
+            if item.owner != request.user and item.assigned_to_user != request.user:
+                from .models import TeamMember
+                is_team_member = TeamMember.objects.filter(
+                    enterprise=item.enterprise,
+                    user=request.user,
+                    status=TeamMember.STATUS_ACTIVE
+                ).exists()
+                if not is_team_member:
+                    return Response({'detail': 'Permission denied'}, status=403)
+            
+            content = request.data.get('content', '').strip()
+            if not content:
+                return Response({'detail': 'Note content is required'}, status=400)
+            
+            progress_update = request.data.get('progress_update')
+            
+            note = ActionItemNote.objects.create(
+                action_item=item,
+                author=request.user,
+                content=content,
+                progress_update=progress_update
+            )
+            
+            # Update item progress if provided
+            if progress_update is not None:
+                item.progress_percentage = min(100, max(0, int(progress_update)))
+                item.save(update_fields=['progress_percentage', 'updated_at'])
+            
+            return Response({
+                'id': note.id,
+                'content': note.content,
+                'progress_update': note.progress_update,
+                'author': {
+                    'id': request.user.id,
+                    'name': f"{request.user.first_name} {request.user.last_name}".strip() or request.user.email
+                },
+                'created_at': note.created_at.isoformat()
+            }, status=201)
+        except ActionItem.DoesNotExist:
+            return Response({'detail': 'Action item not found'}, status=404)
+
+
+class ActionItemUploadDocumentView(APIView):
+    """Upload a document to an action item."""
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request, pk):
+        from .models import ActionItem, ActionItemDocument
+        
+        try:
+            item = ActionItem.objects.get(pk=pk)
+            
+            # Check permission
+            if item.owner != request.user and item.assigned_to_user != request.user:
+                from .models import TeamMember
+                is_team_member = TeamMember.objects.filter(
+                    enterprise=item.enterprise,
+                    user=request.user,
+                    status=TeamMember.STATUS_ACTIVE
+                ).exists()
+                if not is_team_member:
+                    return Response({'detail': 'Permission denied'}, status=403)
+            
+            file = request.FILES.get('file')
+            if not file:
+                return Response({'detail': 'File is required'}, status=400)
+            
+            # Validate file size (max 10MB)
+            if file.size > 10 * 1024 * 1024:
+                return Response({'detail': 'File size exceeds 10MB limit'}, status=400)
+            
+            doc = ActionItemDocument.objects.create(
+                action_item=item,
+                uploaded_by=request.user,
+                file=file,
+                filename=file.name,
+                file_type=file.content_type,
+                file_size=file.size,
+                description=request.data.get('description', '')
+            )
+            
+            return Response({
+                'id': doc.id,
+                'filename': doc.filename,
+                'file_type': doc.file_type,
+                'file_size': doc.file_size,
+                'file_url': request.build_absolute_uri(doc.file.url),
+                'created_at': doc.created_at.isoformat()
+            }, status=201)
+        except ActionItem.DoesNotExist:
+            return Response({'detail': 'Action item not found'}, status=404)
+
+
+class EnterpriseActionItemsView(APIView):
+    """Get all action items for an enterprise (for admin/owner view)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, enterprise_id):
+        from .models import Enterprise, ActionItem, TeamMember
+        
+        try:
+            enterprise = Enterprise.objects.get(pk=enterprise_id)
+            
+            # Check permission - must be owner or admin team member
+            if enterprise.owner != request.user:
+                is_admin = TeamMember.objects.filter(
+                    enterprise=enterprise,
+                    user=request.user,
+                    status=TeamMember.STATUS_ACTIVE,
+                    role__in=[TeamMember.ROLE_ADMIN, TeamMember.ROLE_MANAGER]
+                ).exists()
+                if not is_admin:
+                    return Response({'detail': 'Permission denied'}, status=403)
+            
+            items = ActionItem.objects.filter(
+                enterprise=enterprise
+            ).select_related('owner', 'assigned_to_user', 'completed_by').order_by('status', '-priority', 'due_date')
+            
+            items_data = [{
+                'id': item.id,
+                'title': item.title,
+                'description': item.description,
+                'source': item.source,
+                'priority': item.priority,
+                'status': item.status,
+                'due_date': item.due_date.isoformat() if item.due_date else None,
+                'progress_percentage': item.progress_percentage,
+                'created_at': item.created_at.isoformat(),
+                'updated_at': item.updated_at.isoformat(),
+                'completed_at': item.completed_at.isoformat() if item.completed_at else None,
+                'owner': {
+                    'id': item.owner.id,
+                    'name': f"{item.owner.first_name} {item.owner.last_name}".strip() or item.owner.email
+                },
+                'assigned_to': {
+                    'id': item.assigned_to_user.id if item.assigned_to_user else None,
+                    'name': (f"{item.assigned_to_user.first_name} {item.assigned_to_user.last_name}".strip() 
+                             or item.assigned_to_user.email) if item.assigned_to_user else item.assigned_to
+                } if item.assigned_to_user or item.assigned_to else None,
+                'completed_by': {
+                    'id': item.completed_by.id,
+                    'name': f"{item.completed_by.first_name} {item.completed_by.last_name}".strip() or item.completed_by.email
+                } if item.completed_by else None,
+                'notes_count': item.notes.count(),
+                'documents_count': item.documents.count()
+            } for item in items]
+            
+            # Summary stats
+            total = len(items_data)
+            completed = len([i for i in items_data if i['status'] == 'completed'])
+            in_progress = len([i for i in items_data if i['status'] == 'inprogress'])
+            todo = len([i for i in items_data if i['status'] == 'todo'])
+            
+            return Response({
+                'enterprise_id': enterprise.id,
+                'enterprise_name': enterprise.name,
+                'action_items': items_data,
+                'summary': {
+                    'total': total,
+                    'completed': completed,
+                    'in_progress': in_progress,
+                    'todo': todo,
+                    'completion_rate': round((completed / total * 100) if total > 0 else 0, 1)
+                }
+            })
+        except Enterprise.DoesNotExist:
+            return Response({'detail': 'Enterprise not found'}, status=404)
+
+
+class AssignActionItemView(APIView):
+    """Assign an action item to a team member."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        from .models import ActionItem, TeamMember
+        
+        try:
+            item = ActionItem.objects.get(pk=pk)
+            
+            # Check permission - must be owner or admin
+            if item.owner != request.user:
+                if item.enterprise:
+                    is_admin = TeamMember.objects.filter(
+                        enterprise=item.enterprise,
+                        user=request.user,
+                        status=TeamMember.STATUS_ACTIVE,
+                        role__in=[TeamMember.ROLE_ADMIN, TeamMember.ROLE_MANAGER]
+                    ).exists()
+                    if not is_admin:
+                        return Response({'detail': 'Permission denied'}, status=403)
+                else:
+                    return Response({'detail': 'Permission denied'}, status=403)
+            
+            user_id = request.data.get('user_id')
+            if not user_id:
+                # Unassign
+                item.assigned_to_user = None
+                item.assigned_to = ''
+            else:
+                User = get_user_model()
+                try:
+                    assign_user = User.objects.get(pk=user_id)
+                    item.assigned_to_user = assign_user
+                    item.assigned_to = assign_user.email
+                except User.DoesNotExist:
+                    return Response({'detail': 'User not found'}, status=404)
+            
+            item.save()
+            
+            return Response({
+                'detail': 'Action item assigned successfully',
+                'id': item.id,
+                'assigned_to': {
+                    'id': item.assigned_to_user.id if item.assigned_to_user else None,
+                    'email': item.assigned_to_user.email if item.assigned_to_user else None,
+                    'name': (f"{item.assigned_to_user.first_name} {item.assigned_to_user.last_name}".strip() 
+                             or item.assigned_to_user.email) if item.assigned_to_user else None
+                }
+            })
+        except ActionItem.DoesNotExist:
+            return Response({'detail': 'Action item not found'}, status=404)
+
+
+class EnterpriseTeamMembersView(APIView):
+    """Get team members for an enterprise (for assigning action items)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, enterprise_id):
+        from .models import Enterprise, TeamMember
+        
+        try:
+            enterprise = Enterprise.objects.get(pk=enterprise_id)
+            
+            # Check permission
+            if enterprise.owner != request.user:
+                is_member = TeamMember.objects.filter(
+                    enterprise=enterprise,
+                    user=request.user,
+                    status=TeamMember.STATUS_ACTIVE
+                ).exists()
+                if not is_member:
+                    return Response({'detail': 'Permission denied'}, status=403)
+            
+            members = TeamMember.objects.filter(
+                enterprise=enterprise,
+                status=TeamMember.STATUS_ACTIVE
+            ).select_related('user')
+            
+            members_data = []
+            
+            # Add owner first
+            if enterprise.owner:
+                members_data.append({
+                    'id': enterprise.owner.id,
+                    'email': enterprise.owner.email,
+                    'name': f"{enterprise.owner.first_name} {enterprise.owner.last_name}".strip() or enterprise.owner.email,
+                    'role': 'OWNER',
+                    'is_owner': True
+                })
+            
+            # Add team members
+            for member in members:
+                if member.user and member.user.id != (enterprise.owner.id if enterprise.owner else None):
+                    members_data.append({
+                        'id': member.user.id,
+                        'email': member.user.email,
+                        'name': f"{member.user.first_name} {member.user.last_name}".strip() or member.user.email,
+                        'role': member.role,
+                        'is_owner': False
+                    })
+            
+            return Response({
+                'enterprise_id': enterprise.id,
+                'enterprise_name': enterprise.name,
+                'members': members_data
+            })
+        except Enterprise.DoesNotExist:
+            return Response({'detail': 'Enterprise not found'}, status=404)
 
 
 # Create your views here.

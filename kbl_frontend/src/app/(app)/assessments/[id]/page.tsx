@@ -376,24 +376,16 @@ const AssessmentReport = ({ enterpriseId, onRetake }: AssessmentReportProps) => 
       const html2canvas = (await import('html2canvas')).default;
       const { jsPDF } = await import('jspdf');
       
-      // Create a clone of the report for PDF generation
       const reportElement = reportRef.current;
       
-      // Temporarily expand all categories for PDF
-      const categoryItems = reportElement.querySelectorAll('[class*="category-item"]');
-      const originalStates: boolean[] = [];
-      categoryItems.forEach((item, idx) => {
-        const details = item.querySelector('[class*="category-details"]');
-        originalStates[idx] = details ? getComputedStyle(details).display !== 'none' : false;
-      });
-      
-      // Generate canvas
+      // Generate canvas with high quality
       const canvas = await html2canvas(reportElement, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
         logging: false,
+        windowWidth: 1200, // Fixed width for consistent rendering
       });
       
       const imgData = canvas.toDataURL('image/png');
@@ -405,37 +397,73 @@ const AssessmentReport = ({ enterpriseId, onRetake }: AssessmentReportProps) => 
       
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const headerHeight = 25;
+      const footerHeight = 10;
+      const contentWidth = pdfWidth - (margin * 2);
+      const contentHeight = pdfHeight - headerHeight - footerHeight;
+      
+      // Calculate image dimensions to fit full page width
       const imgWidth = canvas.width;
       const imgHeight = canvas.height;
-      const ratio = Math.min((pdfWidth - 20) / imgWidth, (pdfHeight - 30) / imgHeight);
-      const imgX = 10;
-      const imgY = 20;
+      const imgRatio = imgWidth / imgHeight;
+      const scaledWidth = contentWidth;
+      const scaledHeight = scaledWidth / imgRatio;
       
-      // Add header
-      pdf.setFontSize(16);
-      pdf.setTextColor(1, 73, 127);
-      pdf.text('Kigali Business Lab - Assessment Report', pdfWidth / 2, 12, { align: 'center' });
+      // Calculate total pages needed
+      const totalPages = Math.ceil(scaledHeight / contentHeight);
+      const date = new Date().toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
       
-      // Calculate how many pages we need
-      const scaledHeight = imgHeight * ratio;
-      const pageContentHeight = pdfHeight - 30; // Leave margin for header
-      const totalPages = Math.ceil(scaledHeight / pageContentHeight);
+      // Helper to add header to each page
+      const addHeader = (pageNum: number) => {
+        // Header background
+        pdf.setFillColor(1, 73, 127);
+        pdf.rect(0, 0, pdfWidth, 20, 'F');
+        
+        // Header text
+        pdf.setFontSize(14);
+        pdf.setTextColor(255, 255, 255);
+        pdf.text('KIGALI BUSINESS LAB', margin, 8);
+        pdf.setFontSize(10);
+        pdf.text('Business Diagnostic Assessment Report', margin, 14);
+        
+        // Enterprise name on the right
+        pdf.setFontSize(10);
+        pdf.text(enterpriseName, pdfWidth - margin, 8, { align: 'right' });
+        pdf.text(date, pdfWidth - margin, 14, { align: 'right' });
+        
+        // Page number
+        if (totalPages > 1) {
+          pdf.setFontSize(8);
+          pdf.setTextColor(255, 255, 255);
+          pdf.text(`Page ${pageNum} of ${totalPages}`, pdfWidth / 2, 14, { align: 'center' });
+        }
+      };
       
-      if (totalPages === 1) {
-        pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
-      } else {
-        // Multi-page PDF
-        for (let page = 0; page < totalPages; page++) {
-          if (page > 0) {
-            pdf.addPage();
-            pdf.setFontSize(10);
-            pdf.setTextColor(128, 128, 128);
-            pdf.text(`Page ${page + 1} of ${totalPages}`, pdfWidth / 2, 10, { align: 'center' });
-          }
-          
-          const sourceY = page * (pageContentHeight / ratio);
-          const sourceHeight = Math.min(pageContentHeight / ratio, imgHeight - sourceY);
-          
+      // Helper to add footer to each page
+      const addFooter = () => {
+        pdf.setFontSize(8);
+        pdf.setTextColor(128, 128, 128);
+        pdf.text('© Kigali Business Lab - Confidential', pdfWidth / 2, pdfHeight - 5, { align: 'center' });
+      };
+      
+      // Generate pages
+      for (let page = 0; page < totalPages; page++) {
+        if (page > 0) {
+          pdf.addPage();
+        }
+        
+        addHeader(page + 1);
+        
+        // Calculate source rectangle for this page
+        const sourceY = page * (contentHeight / scaledWidth * imgWidth);
+        const sourceHeight = Math.min(contentHeight / scaledWidth * imgWidth, imgHeight - sourceY);
+        
+        if (sourceHeight > 0) {
           // Create a temporary canvas for this page section
           const pageCanvas = document.createElement('canvas');
           pageCanvas.width = imgWidth;
@@ -444,20 +472,13 @@ const AssessmentReport = ({ enterpriseId, onRetake }: AssessmentReportProps) => 
           if (ctx) {
             ctx.drawImage(canvas, 0, sourceY, imgWidth, sourceHeight, 0, 0, imgWidth, sourceHeight);
             const pageImgData = pageCanvas.toDataURL('image/png');
-            pdf.addImage(pageImgData, 'PNG', imgX, imgY, imgWidth * ratio, sourceHeight * ratio);
+            const pageImgHeight = sourceHeight / imgWidth * contentWidth;
+            pdf.addImage(pageImgData, 'PNG', margin, headerHeight, contentWidth, pageImgHeight);
           }
         }
+        
+        addFooter();
       }
-      
-      // Add footer with date
-      const date = new Date().toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      });
-      pdf.setFontSize(8);
-      pdf.setTextColor(128, 128, 128);
-      pdf.text(`Generated on ${date}`, pdfWidth / 2, pdfHeight - 5, { align: 'center' });
       
       // Save the PDF
       const fileName = `KBL_Assessment_${enterpriseName.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;

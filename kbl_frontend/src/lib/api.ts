@@ -339,7 +339,16 @@ export const teamApi = {
   create: (access: string, payload: { enterprise: number; email: string; role?: string }) => apiPost("team/", payload, access),
   update: (access: string, id: number, payload: any) => apiPatch(`team/${id}/`, payload, access),
   delete: (access: string, id: number) => apiDelete(`team/${id}/`, access),
-  acceptInvite: (access: string, token: string) => apiPost("team/accept/", { token }, access),
+  
+  // Invitation endpoints
+  getInvitation: (token: string) => apiGet(`team/accept/?token=${encodeURIComponent(token)}`),
+  acceptInvite: (payload: { token: string; password?: string; confirm_password?: string; full_name?: string }) => 
+    apiPost("team/accept/", payload),
+  
+  // Team member portal
+  getPortal: (access: string) => apiGet("team-portal/", access),
+  getEnterpriseMembers: (access: string, enterpriseId: number) => 
+    apiGet(`enterprise/${enterpriseId}/team-members/`, access),
 };
 
 export const enterpriseApi = {
@@ -393,6 +402,25 @@ export const actionItemApi = {
   create: (access: string, payload: any) => apiPost("action-items/", payload, access),
   bulkMove: (access: string, items: Array<{ id: number; status: "todo" | "inprogress" | "completed"; order: number }>) =>
     apiPost("action-items/bulk-move/", { items }, access),
+  
+  // Detail and progress
+  getDetail: (access: string, id: number) => apiGet(`action-items/${id}/detail/`, access),
+  updateProgress: (access: string, id: number, payload: { progress_percentage?: number; status?: string; note?: string }) =>
+    apiPost(`action-items/${id}/progress/`, payload, access),
+  addNote: (access: string, id: number, content: string, progressUpdate?: number) =>
+    apiPost(`action-items/${id}/notes/`, { content, progress_update: progressUpdate }, access),
+  uploadDocument: (access: string, id: number, file: File, description?: string) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    if (description) fd.append("description", description);
+    return apiPost(`action-items/${id}/documents/`, fd, access);
+  },
+  assign: (access: string, id: number, userId: number | null) =>
+    apiPost(`action-items/${id}/assign/`, { user_id: userId }, access),
+  
+  // Enterprise action items
+  getEnterpriseItems: (access: string, enterpriseId: number) =>
+    apiGet(`enterprise/${enterpriseId}/action-items/`, access),
 };
 
 export const verificationApi = {
