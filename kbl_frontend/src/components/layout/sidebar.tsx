@@ -105,16 +105,21 @@ export function Sidebar({ isOpen }: SidebarProps) {
         const accessToken = getAccessToken();
         if (!accessToken) return;
         const portalData = await teamApi.getPortal(accessToken);
-        // If user is owner, portalData.is_owner will be true
-        // If user is team member only, they'll have enterprises but not be owner
-        setIsTeamMemberOnly(portalData.is_owner === false && portalData.total_enterprises > 0);
+        // Check if user is team member only (not owner)
+        // If is_team_member_only is explicitly set to true, or if they have enterprises but is_owner is false
+        setIsTeamMemberOnly(
+          portalData.is_team_member_only === true || 
+          (portalData.is_owner === false && portalData.total_enterprises > 0)
+        );
       } catch (e: any) {
-        // If 403 or error, might be owner or not team member
+        // If 403 with is_owner flag, user is owner (not team member only)
         if (e?.status === 403 && e?.data?.is_owner) {
           setIsTeamMemberOnly(false);
+        } else if (e?.status === 403 && e?.data?.redirect_to === '/team-portal') {
+          // If redirected to team portal, they're a team member
+          setIsTeamMemberOnly(true);
         } else {
-          // Try to check by attempting to access dashboard
-          // If it fails with team member message, user is team member
+          // Default to false (owner or not logged in)
           setIsTeamMemberOnly(false);
         }
       }
@@ -135,7 +140,7 @@ export function Sidebar({ isOpen }: SidebarProps) {
   }, []);
   
   // Filter nav items based on user role
-  // Team members only see Team Portal and Settings
+  // Team members ONLY see Team Portal and Settings (no Dashboard, Assessments, Action Plan)
   // Owners see Dashboard, Assessments, Action Plan, and Settings (no Team Portal)
   const navItems = isTeamMemberOnly 
     ? allNavItems.filter(item => item.href === '/team-portal' || item.href === '/settings')

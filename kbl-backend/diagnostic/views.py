@@ -1943,14 +1943,21 @@ class TeamMemberPortalView(APIView):
                 'todo': len([i for i in items_data if i['status'] == 'todo'])
             })
         
+        # Get user's roles from all memberships
+        roles = [m.role for m in memberships]
+        primary_role = roles[0] if roles else None
+        
         return Response({
             'user': {
                 'id': user.id,
                 'email': user.email,
-                'full_name': f"{user.first_name} {user.last_name}".strip() or user.email
+                'full_name': f"{user.first_name} {user.last_name}".strip() or user.email,
+                'role': primary_role,
+                'roles': roles  # All roles across enterprises
             },
             'enterprises': enterprises_data,
-            'total_enterprises': len(enterprises_data)
+            'total_enterprises': len(enterprises_data),
+            'is_team_member_only': True
         })
 
 

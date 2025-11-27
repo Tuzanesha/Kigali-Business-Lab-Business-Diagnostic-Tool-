@@ -107,6 +107,7 @@ const ProfileContent = () => {
     const [showCropModal, setShowCropModal] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isUploading, setIsUploading] = useState(false);
+    const [userRole, setUserRole] = useState<string | null>(null);
     const [profileData, setProfileData] = useState<ProfileData>({ 
         fullName: '', 
         email: '', 
@@ -142,6 +143,16 @@ const ProfileContent = () => {
                 title: p.title || '',
                 avatarUrl: p.avatar_url || ''
             });
+            
+            // Try to get role from team portal (for team members)
+            try {
+                const portalData = await teamApi.getPortal(access);
+                if (portalData.user?.role) {
+                    setUserRole(portalData.user.role);
+                }
+            } catch {
+                // Not a team member or error fetching role - that's okay
+            }
         } catch (e: any) {
             toast.error(e?.message || 'Could not load profile.');
         } finally {
@@ -469,6 +480,28 @@ const ProfileContent = () => {
                     value={profileData.phone} 
                     onChange={handleChange}
                 />
+                {userRole && (
+                    <div className="form-group">
+                        <label className="form-label">Team Role</label>
+                        <div style={{ 
+                            padding: '0.75rem', 
+                            background: '#f1f5f9', 
+                            border: '1px solid #e2e8f0', 
+                            borderRadius: '0.375rem',
+                            color: '#475569',
+                            fontWeight: '500',
+                            textTransform: 'uppercase',
+                            fontSize: '0.875rem'
+                        }}>
+                            {userRole === 'ADMIN' ? 'Administrator' : 
+                             userRole === 'MANAGER' ? 'Manager' : 
+                             userRole === 'MEMBER' ? 'Team Member' : userRole}
+                        </div>
+                        <p style={{ marginTop: '0.25rem', fontSize: '0.75rem', color: '#94a3b8' }}>
+                            Your role is assigned by the enterprise owner
+                        </p>
+                    </div>
+                )}
                 <FormInput 
                     id="title" 
                     label="Job Title / Role" 
@@ -939,28 +972,58 @@ const NotificationsContent = () => {
 
 export default function SettingsPage() {
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-  const initialTab = searchParams?.get('tab') === 'enterprise' ? 'Enterprise Profile' : 'Profile';
-  const [activeTab, setActiveTab] = useState(initialTab);
   const [isTeamMemberOnly, setIsTeamMemberOnly] = useState(false);
+  const [activeTab, setActiveTab] = useState('Profile');
   
-  // Check if user is team member only
+  // Check if user is team member only and set initial tab
   useEffect(() => {
     const checkTeamMemberStatus = async () => {
       try {
         const access = getAccessToken();
         if (!access) return;
         const portalData = await teamApi.getPortal(access);
-        setIsTeamMemberOnly(portalData.is_owner === false && portalData.total_enterprises > 0);
+        // Check if user is team member only (not owner)
+        const isTeamMember = portalData.is_team_member_only === true || 
+          (portalData.is_owner === false && portalData.total_enterprises > 0);
+        setIsTeamMemberOnly(isTeamMember);
+        
+        // Set initial tab from URL, but only if allowed for user role
+        if (searchParams) {
+          const tabParam = searchParams.get('tab');
+          if (tabParam === 'enterprise' && !isTeamMember) {
+            setActiveTab('Enterprise Profile');
+          } else if (tabParam === 'team' && !isTeamMember) {
+            setActiveTab('Team');
+          } else if (tabParam === 'notifications') {
+            setActiveTab('Notifications');
+          } else if (tabParam === 'account') {
+            setActiveTab('Account');
+          } else {
+            setActiveTab('Profile');
+          }
+        }
       } catch (e: any) {
+        // If 403 with is_owner flag, user is owner (not team member only)
         if (e?.status === 403 && e?.data?.is_owner) {
           setIsTeamMemberOnly(false);
+          // Owner can access all tabs
+          if (searchParams?.get('tab') === 'enterprise') {
+            setActiveTab('Enterprise Profile');
+          } else if (searchParams?.get('tab') === 'team') {
+            setActiveTab('Team');
+          }
+        } else if (e?.status === 403 && e?.data?.redirect_to === '/team-portal') {
+          // If redirected to team portal, they're a team member
+          setIsTeamMemberOnly(true);
+          setActiveTab('Profile');
         } else {
+          // Default to false (owner or not logged in)
           setIsTeamMemberOnly(false);
         }
       }
     };
     checkTeamMemberStatus();
-  }, []);
+  }, [searchParams]);
   
   // Team members only see Profile, Account, and Notifications
   // Owners see all tabs
