@@ -369,6 +369,13 @@ export const catalogApi = {
     const query = params?.category ? `?category=${encodeURIComponent(params.category)}` : "";
     return apiGet(`questions/${query}`, access);
   },
+  // Optimized endpoint that returns ALL questions grouped by category in a single request
+  getAllQuestions: (access: string) => apiGet<{
+    questions_by_category: Record<string, any[]>;
+    total_questions: number;
+    categories: string[];
+    message?: string;
+  }>("questions/all/", access),
 };
 
 export const dashboardApi = {

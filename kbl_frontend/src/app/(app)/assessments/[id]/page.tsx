@@ -38,26 +38,39 @@ const AssessmentWizard = ({ enterpriseId, onComplete, onExit }: { enterpriseId: 
       try {
         const access = getAccessToken();
         if (!access) throw new Error('Unauthorized');
-        // Load categories
-        const cats = await catalogApi.getCategories(access);
-        const names: string[] = (Array.isArray(cats) ? cats : cats?.results || []).map((c: any) => c.name);
-        setSteps(names);
-        // Load questions per category
+        
+        // Use the optimized endpoint that returns ALL questions in one request
+        const allQuestionsResponse = await catalogApi.getAllQuestions(access);
+        
+        if (allQuestionsResponse.total_questions === 0) {
+          toast.error('No questions found. Please contact support.', { id });
+          setLoading(false);
+          return;
+        }
+        
+        // Set categories from the response
+        const categoryNames = allQuestionsResponse.categories || [];
+        setSteps(categoryNames);
+        
+        // Transform questions by category
         const byStep: Record<string, UiQuestion[]> = {};
-        for (const name of names) {
-          const qres = await catalogApi.getQuestions(access, { category: name });
-          const items: any[] = Array.isArray(qres) ? qres : qres?.results || [];
-          byStep[name] = items.map((q: any) => ({
+        const questionsByCategory = allQuestionsResponse.questions_by_category || {};
+        
+        for (const categoryName of categoryNames) {
+          const items: any[] = questionsByCategory[categoryName] || [];
+          byStep[categoryName] = items.map((q: any) => ({
             id: String(q.id),
             backendId: q.id,
             text: q.text,
             options: [0,1,2,3,4].map((k) => q.descriptors?.[String(k)] ?? String(k)),
           }));
         }
+        
         setQuestionsByStep(byStep);
         setLoading(false);
-        toast.success('Assessment loaded', { id });
+        toast.success(`Loaded ${allQuestionsResponse.total_questions} questions`, { id, duration: 2000 });
       } catch (e: any) {
+        console.error('Failed to load assessment:', e);
         toast.error(e?.message || 'Failed to load assessment', { id });
         setLoading(false);
       }

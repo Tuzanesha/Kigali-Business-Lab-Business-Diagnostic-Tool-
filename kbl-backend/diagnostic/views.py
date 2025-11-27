@@ -59,7 +59,7 @@ class QuestionViewSet(viewsets.ModelViewSet):
         if category_name:
             qs = qs.filter(category__name__iexact=category_name)
         return qs
-    
+
     @action(detail=False, methods=['get'], url_path='all')
     def all_questions(self, request):
         """
@@ -837,30 +837,88 @@ class DeleteAccountView(APIView):
             except Exception:
                 pass  # If we can't check, we'll try to delete and catch the error
             
-            # Delete NotificationPreference FIRST (OneToOne relationship)
+            # CRITICAL: Delete JWT tokens from token_blacklist FIRST
+            # This table has a foreign key to the user table and must be cleaned up
             try:
-                NotificationPreference.objects.filter(user=user).delete()
-                logger.info(f"Deleted notification preferences for user {user_id}")
+                from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
+                
+                # Get all outstanding tokens for this user
+                outstanding_tokens = OutstandingToken.objects.filter(user=user)
+                token_ids = list(outstanding_tokens.values_list('id', flat=True))
+                
+                # Delete blacklisted tokens that reference the outstanding tokens
+                if token_ids:
+                    BlacklistedToken.objects.filter(token_id__in=token_ids).delete()
+                    logger.info(f"Deleted blacklisted tokens for user {user_id}")
+                
+                # Now delete the outstanding tokens
+                outstanding_tokens.delete()
+                logger.info(f"Deleted outstanding tokens for user {user_id}")
             except Exception as e:
-                logger.warning(f"Could not delete notification preferences: {str(e)}")
+                logger.warning(f"Could not delete JWT tokens (trying SQL fallback): {str(e)}")
+                # Fallback to direct SQL
+                try:
+                    with connection.cursor() as cursor:
+                        # First delete blacklisted tokens (references outstanding tokens)
+                        cursor.execute("""
+                            DELETE FROM token_blacklist_blacklistedtoken 
+                            WHERE token_id IN (
+                                SELECT id FROM token_blacklist_outstandingtoken WHERE user_id = %s
+                            )
+                        """, [user_id])
+                        # Then delete outstanding tokens
+                        cursor.execute("DELETE FROM token_blacklist_outstandingtoken WHERE user_id = %s", [user_id])
+                        logger.info(f"Deleted JWT tokens via SQL for user {user_id}")
+                except Exception as sql_e:
+                    logger.warning(f"SQL fallback for JWT token deletion failed: {str(sql_e)}")
+            
+            # Delete NotificationPreference (OneToOne relationship)
+            try:
+                if hasattr(user, 'notification_preferences'):
+                    user.notification_preferences.delete()
+                    logger.info(f"Deleted notification preferences for user {user_id}")
+                else:
+                    NotificationPreference.objects.filter(user=user).delete()
+                    logger.info(f"Deleted notification preferences for user {user_id} (via filter)")
+            except Exception as e:
+                logger.warning(f"Could not delete notification preferences (may not exist): {str(e)}")
+                try:
+                    with connection.cursor() as cursor:
+                        cursor.execute("DELETE FROM diagnostic_notificationpreference WHERE user_id = %s", [user_id])
+                        logger.info(f"Deleted notification preferences via SQL for user {user_id}")
+                except Exception:
+                    pass
             
             # Delete user's enterprises and related data
             enterprises = Enterprise.objects.filter(owner=user)
-            for enterprise in enterprises:
-                # Delete enterprise-related data
-                QuestionResponse.objects.filter(enterprise=enterprise).delete()
-                ScoreSummary.objects.filter(enterprise=enterprise).delete()
-                ActionItem.objects.filter(enterprise=enterprise).delete()
-                
-                # Only try to delete team members if table exists
-                if team_members_table_exists:
-                    try:
-                        from .models import TeamMember
-                        TeamMember.objects.filter(enterprise=enterprise).delete()
-                    except (ProgrammingError, Exception) as e:
-                        logger.warning(f"Could not delete team members (table may not exist): {str(e)}")
+            enterprise_ids = list(enterprises.values_list('id', flat=True))
             
-            # Delete user's other data
+            for enterprise_id in enterprise_ids:
+                try:
+                    enterprise = Enterprise.objects.get(id=enterprise_id)
+                    # Delete enterprise-related data
+                    QuestionResponse.objects.filter(enterprise=enterprise).delete()
+                    ScoreSummary.objects.filter(enterprise=enterprise).delete()
+                    ActionItem.objects.filter(enterprise=enterprise).delete()
+                    
+                    # Delete AssessmentSession if it exists
+                    try:
+                        from .models import AssessmentSession
+                        AssessmentSession.objects.filter(enterprise=enterprise).delete()
+                    except Exception:
+                        pass
+                    
+                    # Only try to delete team members if table exists
+                    if team_members_table_exists:
+                        try:
+                            from .models import TeamMember
+                            TeamMember.objects.filter(enterprise=enterprise).delete()
+                        except (ProgrammingError, Exception) as e:
+                            logger.warning(f"Could not delete team members (table may not exist): {str(e)}")
+                except Exception as e:
+                    logger.warning(f"Error deleting enterprise {enterprise_id}: {str(e)}")
+            
+            # Delete user's other data (order matters for foreign keys)
             EmailOTP.objects.filter(user=user).delete()
             PhoneOTP.objects.filter(user=user).delete()
             ActionItem.objects.filter(owner=user).delete()
@@ -873,50 +931,57 @@ class DeleteAccountView(APIView):
                 except (ProgrammingError, Exception) as e:
                     logger.warning(f"Could not delete user team memberships (table may not exist): {str(e)}")
             
-            # Delete enterprises
+            # Delete enterprises (owner is SET_NULL, so this should be safe)
             enterprises.delete()
             
             # Finally delete the user
-            # Try Django's delete first (handles CASCADE properly)
             try:
                 user.delete()
                 logger.info(f"User {user_id} deleted successfully via Django ORM")
             except (ProgrammingError, IntegrityError) as e:
                 error_str = str(e)
-                if 'team_members' in error_str:
-                    # If team_members table doesn't exist, delete user directly via SQL
-                    logger.warning("team_members table doesn't exist, deleting user directly via SQL")
-                    # Delete all remaining foreign key references first
-                    with connection.cursor() as cursor:
-                        # Delete any remaining references manually
+                logger.warning(f"Django ORM delete failed: {error_str}")
+                
+                # Use direct SQL to delete user and handle all constraints
+                with connection.cursor() as cursor:
+                    user_table = user._meta.db_table
+                    
+                    # Delete all remaining foreign key references manually
+                    tables_to_clean = [
+                        ('token_blacklist_outstandingtoken', 'user_id'),
+                        ('diagnostic_notificationpreference', 'user_id'),
+                        ('diagnostic_emailotp', 'user_id'),
+                        ('diagnostic_phoneotp', 'user_id'),
+                        ('diagnostic_actionitem', 'owner_id'),
+                    ]
+                    
+                    # Add team_members if table exists
+                    if team_members_table_exists:
+                        tables_to_clean.append(('team_members', 'user_id'))
+                        tables_to_clean.append(('team_members', 'invited_by_id'))
+                    
+                    for table_name, column_name in tables_to_clean:
                         try:
-                            cursor.execute("DELETE FROM diagnostic_notificationpreference WHERE user_id = %s", [user_id])
-                        except Exception:
-                            pass
-                        # Get the actual user table name from the model
-                        user_table = user._meta.db_table
-                        logger.info(f"Attempting to delete user from table: {user_table}")
-                        # Delete user directly
-                        cursor.execute("DELETE FROM {} WHERE id = %s".format(user_table), [user_id])
-                    logger.info(f"User {user_id} deleted via direct SQL from table {user_table}")
-                elif 'foreign key' in error_str.lower() or 'constraint' in error_str.lower():
-                    # Handle other foreign key constraint violations
-                    logger.warning(f"Foreign key constraint violation: {error_str}")
-                    # Try to delete remaining references
-                    with connection.cursor() as cursor:
-                        # Delete notification preferences if still exists
-                        try:
-                            cursor.execute("DELETE FROM diagnostic_notificationpreference WHERE user_id = %s", [user_id])
-                        except Exception:
-                            pass
-                        # Try deleting user again
-                        user_table = user._meta.db_table
-                        cursor.execute("DELETE FROM {} WHERE id = %s".format(user_table), [user_id])
-                    logger.info(f"User {user_id} deleted after handling foreign key constraints")
-                else:
-                    # Re-raise if it's a different error
-                    logger.error(f"Unexpected error during user deletion: {error_str}")
-                    raise
+                            cursor.execute(
+                                f"DELETE FROM {table_name} WHERE {column_name} = %s",
+                                [user_id]
+                            )
+                            deleted = cursor.rowcount
+                            if deleted > 0:
+                                logger.info(f"Deleted {deleted} rows from {table_name} for user {user_id}")
+                        except Exception as e:
+                            logger.warning(f"Could not delete from {table_name}: {str(e)}")
+                    
+                    # Finally delete the user
+                    try:
+                        cursor.execute(f"DELETE FROM {user_table} WHERE id = %s", [user_id])
+                        if cursor.rowcount > 0:
+                            logger.info(f"User {user_id} deleted via direct SQL from table {user_table}")
+                        else:
+                            logger.warning(f"User {user_id} not found in table {user_table}")
+                    except Exception as e:
+                        logger.error(f"Failed to delete user from {user_table}: {str(e)}")
+                        raise
             
             logger.info(f"Successfully deleted account for user {user_id} ({user_email})")
             return Response({'detail': 'Account deleted successfully'}, status=200)
