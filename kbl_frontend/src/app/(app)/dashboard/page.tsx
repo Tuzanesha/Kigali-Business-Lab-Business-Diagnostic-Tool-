@@ -122,17 +122,21 @@ const NewUserWelcome = () => {
       <header className={styles['page-header']}>
         <div>
           <h1 className={styles['page-title']}>WELCOME TO KBL</h1>
-          
+          <p className={styles['welcome-message']}>Let&apos;s get started with your business diagnostic journey</p>
         </div>
       </header>
       <div className={styles['welcome-card']}>
         <h2 className={styles['welcome-title']}>Create Your Enterprise Profile</h2>
         <p className={styles['welcome-text']}>
-          Your enterprise profile is the first step to unlocking insights and tracking your business's health. Let's get it filled out.
+          Before you can run a business diagnostic assessment, you need to create your enterprise profile. 
+          This helps us tailor the questions and analysis to your specific business.
         </p>
-        <Link href="/settings" className={styles['welcome-button']}>
+        <Link href="/settings?tab=enterprise" className={styles['welcome-button']}>
           Create Enterprise Profile
         </Link>
+        <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '1rem' }}>
+          Only takes a few minutes to complete
+        </p>
       </div>
     </div>
   );

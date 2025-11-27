@@ -938,7 +938,9 @@ const NotificationsContent = () => {
 };
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState('Profile');
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const initialTab = searchParams?.get('tab') === 'enterprise' ? 'Enterprise Profile' : 'Profile';
+  const [activeTab, setActiveTab] = useState(initialTab);
   const tabs = ['Profile', 'Account', 'Enterprise Profile', 'Team', 'Notifications'];
 
   return (

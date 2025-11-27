@@ -228,26 +228,82 @@ const AssessmentReport = ({ enterpriseId, onRetake }: AssessmentReportProps) => 
   );
 };
 
+// Component shown when user has no enterprise profile
+const NoEnterprisePrompt = () => {
+  const router = useRouter();
+  return (
+    <div className={styles['assessment-container']}>
+      <div className={styles['wizard-page']}>
+        <header className={styles['page-header']}>
+          <h1 className={styles['page-title']}>CREATE ENTERPRISE FIRST</h1>
+        </header>
+        <div className={styles['questions-card']} style={{ textAlign: 'center', padding: '3rem 2rem' }}>
+          <AlertTriangle size={64} style={{ color: '#f59e0b', marginBottom: '1.5rem' }} />
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '1rem', color: '#1e293b' }}>
+            Enterprise Profile Required
+          </h2>
+          <p style={{ fontSize: '1rem', color: '#64748b', marginBottom: '2rem', maxWidth: '500px', margin: '0 auto 2rem' }}>
+            Before you can start an assessment, you need to create your enterprise profile. 
+            This helps us tailor the diagnostic questions to your business.
+          </p>
+          <button 
+            onClick={() => router.push('/settings?tab=enterprise')}
+            className={`${styles['nav-button']} ${styles['nav-button-primary']}`}
+            style={{ padding: '0.875rem 2rem', fontSize: '1rem' }}
+          >
+            Create Enterprise Profile
+          </button>
+          <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '1rem' }}>
+            Already have a profile? <button onClick={() => router.push('/dashboard')} style={{ color: '#01497f', textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer' }}>Go to Dashboard</button>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function AssessmentPageController() {
   const params = useParams();
+  const router = useRouter();
   const [enterpriseId, setEnterpriseId] = useState<number | null>(null);
-  const [view, setView] = useState<'assessment' | 'report'>('assessment');
+  const [view, setView] = useState<'assessment' | 'report' | 'no-enterprise'>('assessment');
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const resolve = async () => {
       const pid = params?.id as string | undefined;
       let eid: number | null = null;
+      
+      const access = getAccessToken();
+      if (!access) {
+        router.push('/login');
+        return;
+      }
+      
       if (pid && !isNaN(Number(pid))) {
         eid = Number(pid);
       } else {
-        const access = getAccessToken();
-        if (access) {
-          try {
-            const prof = await enterpriseApi.getProfile(access);
-            eid = Number(prof?.id);
-          } catch {}
+        // Try to get the user's enterprise profile
+        try {
+          const prof = await enterpriseApi.getProfile(access);
+          // Check if enterprise actually exists (backend returns {exists: false} for no enterprise)
+          if (prof?.id && prof?.exists !== false) {
+            eid = Number(prof.id);
+          } else {
+            // No enterprise exists - show prompt
+            setView('no-enterprise');
+            setIsLoading(false);
+            return;
+          }
+        } catch (e: any) {
+          // 404 or error means no enterprise
+          console.log('No enterprise found:', e?.message);
+          setView('no-enterprise');
+          setIsLoading(false);
+          return;
         }
       }
+      
       if (eid) {
         setEnterpriseId(eid);
         // If route is /assessments/new (non-numeric id), always open the form
@@ -256,24 +312,38 @@ export default function AssessmentPageController() {
         } else {
           // Numeric id: try to show report if it exists, else show form
           try {
-            const access = getAccessToken();
-            if (access) {
-              await enterpriseApi.getReport(access, eid);
-              setView('report');
-            }
+            await enterpriseApi.getReport(access, eid);
+            setView('report');
           } catch {
             setView('assessment');
           }
         }
+      } else {
+        // No enterprise ID - shouldn't happen but handle it
+        setView('no-enterprise');
       }
+      setIsLoading(false);
     };
     resolve();
-  }, [params]);
+  }, [params, router]);
 
   const handleStartOver = () => { setView('assessment'); };
-  if (!enterpriseId) {
+  
+  // Show loading state
+  if (isLoading) {
     return <div className={styles['assessment-container']}>Loading...</div>;
   }
+  
+  // Show no-enterprise prompt
+  if (view === 'no-enterprise') {
+    return <NoEnterprisePrompt />;
+  }
+  
+  // Show loading if we still don't have enterprise ID (shouldn't happen)
+  if (!enterpriseId) {
+    return <NoEnterprisePrompt />;
+  }
+  
   return (
     <div className={styles['assessment-container']}>
       {view === 'assessment' ? (
@@ -287,4 +357,5 @@ export default function AssessmentPageController() {
       )}
     </div>
   );
+}
 }
