@@ -1,6 +1,7 @@
 from rest_framework import viewsets, status, permissions, serializers
 from django.db import models
 import logging
+import os
 import re
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -494,9 +495,23 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
         
         # Send invitation email
         try:
-            accept_url = self.request.build_absolute_uri(
-                '/api/team/accept/'
-            ) + f'?token={token}'
+            # Get frontend URL from environment or construct from request
+            frontend_url = os.environ.get('FRONTEND_URL') or os.environ.get('NEXT_PUBLIC_API_URL', '').replace('/api', '')
+            if not frontend_url or 'localhost' in frontend_url:
+                # Try to get from request headers
+                proto = request.META.get('HTTP_X_FORWARDED_PROTO') or ('https' if request.is_secure() else 'http')
+                host = request.META.get('HTTP_X_FORWARDED_HOST') or request.META.get('HTTP_HOST') or request.get_host()
+                # If host is backend, try to construct frontend URL
+                if 'business-diagnostic-tool.onrender.com' in host:
+                    frontend_url = 'https://kigali-business-lab-business-diagnostic.onrender.com'
+                elif 'localhost' in host or '127.0.0.1' in host:
+                    frontend_url = 'http://localhost:3000'
+                else:
+                    frontend_url = f"{proto}://{host}".replace('/api', '')
+            
+            # Remove trailing slash and /api if present
+            frontend_url = frontend_url.rstrip('/').replace('/api', '')
+            accept_url = f"{frontend_url}/accept-invitation?token={token}"
             
             send_team_invitation_email(
                 inviter_name=self.request.user.get_full_name() or self.request.user.email,
@@ -1829,15 +1844,34 @@ class TeamMemberPortalView(APIView):
         
         user = request.user
         
-        # Get all enterprises where this user is a team member
+        # Check if user is an owner of any enterprise - owners shouldn't use team portal
+        is_owner = Enterprise.objects.filter(owner=user).exists()
+        if is_owner:
+            return Response({
+                'detail': 'Enterprise owners should use the main dashboard and action plan features, not the team portal.',
+                'is_owner': True,
+                'user': {
+                    'id': user.id,
+                    'email': user.email,
+                    'full_name': f"{user.first_name} {user.last_name}".strip() or user.email
+                },
+                'enterprises': [],
+                'total_enterprises': 0
+            })
+        
+        # Get all enterprises where this user is a team member (but NOT the owner)
         memberships = TeamMember.objects.filter(
             user=user, 
             status=TeamMember.STATUS_ACTIVE
-        ).select_related('enterprise')
+        ).select_related('enterprise').exclude(enterprise__owner=user)
         
         enterprises_data = []
         for membership in memberships:
             enterprise = membership.enterprise
+            
+            # Double-check: skip if user is the owner
+            if enterprise.owner == user:
+                continue
             
             # Get action items assigned to this user for this enterprise
             assigned_items = ActionItem.objects.filter(

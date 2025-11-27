@@ -50,6 +50,8 @@ interface PortalData {
   };
   enterprises: Enterprise[];
   total_enterprises: number;
+  is_owner?: boolean;
+  detail?: string;
 }
 
 export default function TeamPortalPage() {
@@ -69,7 +71,11 @@ export default function TeamPortalPage() {
       try {
         const portalData = await teamApi.getPortal(access);
         setData(portalData);
-        toast.success('Portal loaded', { id: tid, duration: 1500 });
+        if (portalData.is_owner) {
+          toast.dismiss(tid);
+        } else {
+          toast.success('Portal loaded', { id: tid, duration: 1500 });
+        }
       } catch (e: any) {
         toast.error(e?.message || 'Failed to load portal', { id: tid });
         if (e?.status === 401) {
@@ -105,6 +111,25 @@ export default function TeamPortalPage() {
       <div className={styles.loadingContainer}>
         <div className={styles.spinner}></div>
         <p>Loading your portal...</p>
+      </div>
+    );
+  }
+
+  // Show message for owners
+  if (data?.is_owner) {
+    return (
+      <div className={styles.emptyState}>
+        <Building2 size={64} className={styles.emptyIcon} />
+        <h2>Team Portal Not Available</h2>
+        <p>{data.detail || 'Enterprise owners should use the main dashboard and action plan features to manage their business and track team progress.'}</p>
+        <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+          <Link href="/dashboard" className={styles.primaryButton}>
+            Go to Dashboard
+          </Link>
+          <Link href="/action-plan" className={styles.primaryButton}>
+            View Action Plan
+          </Link>
+        </div>
       </div>
     );
   }
