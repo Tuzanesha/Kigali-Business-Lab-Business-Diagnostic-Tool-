@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
-import { profileApi, authApi, getAccessToken } from '../../lib/api';
+import { profileApi, authApi, teamApi, getAccessToken } from '../../lib/api';
 import toast from 'react-hot-toast';
 import {
   LayoutDashboard,
@@ -15,7 +15,6 @@ import {
   LogOut,
   Users,
 } from 'lucide-react';
-import { teamApi, getAccessToken } from '../../lib/api';
 import '../../styles/sidebar.css';
 
 interface SidebarProps {
