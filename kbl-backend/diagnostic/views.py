@@ -20,6 +20,17 @@ from django.urls import reverse
 from .utils.email import send_team_invitation_email
 
 from .models import Category, Question, Enterprise, QuestionResponse, ScoreSummary, Attachment, EmailOTP, PhoneOTP, ActionItem, TeamMember
+
+# Utility function to check if user is a team member (not an owner)
+def is_team_member_only(user):
+    """Check if user is ONLY a team member (not an owner of any enterprise)."""
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    # If user owns any enterprise, they're not a team member only
+    if Enterprise.objects.filter(owner=user).exists():
+        return False
+    # Check if user is an active team member
+    return TeamMember.objects.filter(user=user, status=TeamMember.STATUS_ACTIVE).exists()
 from .serializers import (
     CategorySerializer,
     QuestionSerializer,
@@ -121,6 +132,9 @@ class EnterpriseViewSet(viewsets.ModelViewSet):
     serializer_class = EnterpriseSerializer
 
     def get_queryset(self):
+        # Team members should not access enterprise management
+        if is_team_member_only(self.request.user):
+            return Enterprise.objects.none()
         return Enterprise.objects.filter(owner=self.request.user).order_by('-created_at')
 
     def perform_create(self, serializer):
@@ -297,6 +311,9 @@ class ActionItemViewSet(viewsets.ModelViewSet):
     serializer_class = ActionItemSerializer
 
     def get_queryset(self):
+        # Team members should not access action plan board - they use team portal
+        if is_team_member_only(self.request.user):
+            return ActionItem.objects.none()
         qs = ActionItem.objects.filter(owner=self.request.user)
         status_q = self.request.query_params.get('status')
         if status_q in {ActionItem.STATUS_TODO, ActionItem.STATUS_INPROGRESS, ActionItem.STATUS_COMPLETED}:
@@ -1258,6 +1275,13 @@ class DashboardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        # Team members should not access dashboard - redirect them to team portal
+        if is_team_member_only(request.user):
+            return Response({
+                "detail": "Team members should use the Team Portal instead of the Dashboard.",
+                "redirect_to": "/team-portal"
+            }, status=403)
+        
         # Require email verification only
         has_email_verified = EmailOTP.objects.filter(user=request.user, is_verified=True).exists()
         if not has_email_verified:
@@ -1275,8 +1299,11 @@ class DashboardView(APIView):
 
 class MyAssessmentStatsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
-
+    
     def get(self, request):
+        # Team members should not access assessment stats
+        if is_team_member_only(request.user):
+            return Response({"detail": "Team members should use the Team Portal."}, status=403)
         from .models import ActionItem, AssessmentSession, ScoreSummary, Category
 
         # Get user's enterprises
@@ -1357,6 +1384,10 @@ class MyAssessmentSessionsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        # Team members should not access assessment sessions
+        if is_team_member_only(request.user):
+            return Response({"detail": "Team members should use the Team Portal."}, status=403)
+        
         from .models import AssessmentSession
         enterprises = Enterprise.objects.filter(owner=request.user)
         sessions = (
@@ -1611,6 +1642,10 @@ class EnterpriseReportView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, pk: int):
+        # Team members should not access enterprise reports
+        if is_team_member_only(request.user):
+            return Response({"detail": "Team members should use the Team Portal."}, status=403)
+        
         try:
             e = Enterprise.objects.get(pk=pk, owner=request.user)
         except Enterprise.DoesNotExist:
@@ -1874,9 +1909,12 @@ class TeamMemberPortalView(APIView):
                 continue
             
             # Get action items assigned to this user for this enterprise
+            # Check both assigned_to_user (new) and assigned_to (legacy) fields
             assigned_items = ActionItem.objects.filter(
-                enterprise=enterprise,
-                assigned_to_user=user
+                enterprise=enterprise
+            ).filter(
+                models.Q(assigned_to_user=user) | 
+                models.Q(assigned_to__iexact=user.email)
             ).order_by('status', '-priority', 'due_date')
             
             items_data = [{

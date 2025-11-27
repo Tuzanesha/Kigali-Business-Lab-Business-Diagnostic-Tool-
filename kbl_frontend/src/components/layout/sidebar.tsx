@@ -15,6 +15,7 @@ import {
   LogOut,
   Users,
 } from 'lucide-react';
+import { teamApi, getAccessToken } from '../../lib/api';
 import '../../styles/sidebar.css';
 
 interface SidebarProps {
@@ -22,7 +23,7 @@ interface SidebarProps {
   toggleSidebar: () => void;
 }
 
-const navItems = [
+const allNavItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/assessments', icon: FileText, label: 'Assessments' },
   { href: '/action-plan', icon: ClipboardCheck, label: 'Action Plan' },
@@ -36,6 +37,7 @@ export function Sidebar({ isOpen }: SidebarProps) {
   const [fullName, setFullName] = useState<string>('');
   const [avatarUrl, setAvatarUrl] = useState<string>('');
   const [avatarError, setAvatarError] = useState<boolean>(false);
+  const [isTeamMemberOnly, setIsTeamMemberOnly] = useState<boolean>(false);
 
   const isLinkActive = (href: string) => {
     return href === '/dashboard' ? pathname === href : pathname.startsWith(href);
@@ -98,6 +100,29 @@ export function Sidebar({ isOpen }: SidebarProps) {
   useEffect(() => {
     loadProfile();
     
+    // Check if user is team member only
+    const checkTeamMemberStatus = async () => {
+      try {
+        const accessToken = getAccessToken();
+        if (!accessToken) return;
+        const portalData = await teamApi.getPortal(accessToken);
+        // If user is owner, portalData.is_owner will be true
+        // If user is team member only, they'll have enterprises but not be owner
+        setIsTeamMemberOnly(portalData.is_owner === false && portalData.total_enterprises > 0);
+      } catch (e: any) {
+        // If 403 or error, might be owner or not team member
+        if (e?.status === 403 && e?.data?.is_owner) {
+          setIsTeamMemberOnly(false);
+        } else {
+          // Try to check by attempting to access dashboard
+          // If it fails with team member message, user is team member
+          setIsTeamMemberOnly(false);
+        }
+      }
+    };
+    
+    checkTeamMemberStatus();
+    
     // Listen for profile updates (e.g., when avatar is changed)
     const handleProfileUpdate = () => {
       loadProfile();
@@ -109,6 +134,13 @@ export function Sidebar({ isOpen }: SidebarProps) {
       window.removeEventListener('profileUpdated', handleProfileUpdate);
     };
   }, []);
+  
+  // Filter nav items based on user role
+  // Team members only see Team Portal and Settings
+  // Owners see Dashboard, Assessments, Action Plan, and Settings (no Team Portal)
+  const navItems = isTeamMemberOnly 
+    ? allNavItems.filter(item => item.href === '/team-portal' || item.href === '/settings')
+    : allNavItems.filter(item => item.href !== '/team-portal');
 
   const initials = React.useMemo(() => {
     const n = (fullName || '').trim();

@@ -941,7 +941,33 @@ export default function SettingsPage() {
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const initialTab = searchParams?.get('tab') === 'enterprise' ? 'Enterprise Profile' : 'Profile';
   const [activeTab, setActiveTab] = useState(initialTab);
-  const tabs = ['Profile', 'Account', 'Enterprise Profile', 'Team', 'Notifications'];
+  const [isTeamMemberOnly, setIsTeamMemberOnly] = useState(false);
+  
+  // Check if user is team member only
+  useEffect(() => {
+    const checkTeamMemberStatus = async () => {
+      try {
+        const access = getAccessToken();
+        if (!access) return;
+        const portalData = await teamApi.getPortal(access);
+        setIsTeamMemberOnly(portalData.is_owner === false && portalData.total_enterprises > 0);
+      } catch (e: any) {
+        if (e?.status === 403 && e?.data?.is_owner) {
+          setIsTeamMemberOnly(false);
+        } else {
+          setIsTeamMemberOnly(false);
+        }
+      }
+    };
+    checkTeamMemberStatus();
+  }, []);
+  
+  // Team members only see Profile, Account, and Notifications
+  // Owners see all tabs
+  const allTabs = ['Profile', 'Account', 'Enterprise Profile', 'Team', 'Notifications'];
+  const tabs = isTeamMemberOnly 
+    ? allTabs.filter(tab => ['Profile', 'Account', 'Notifications'].includes(tab))
+    : allTabs;
 
   return (
     <div className="settings-page">
