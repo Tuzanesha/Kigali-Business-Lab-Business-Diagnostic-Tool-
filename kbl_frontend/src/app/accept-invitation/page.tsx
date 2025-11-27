@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { teamApi } from '../../lib/api';
 import { CheckCircle, AlertCircle, Building2, User, Lock, Mail } from 'lucide-react';
 import styles from './accept-invitation.module.css';
 
-export default function AcceptInvitationPage() {
+function AcceptInvitationContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get('token') || '';
@@ -206,6 +206,23 @@ export default function AcceptInvitationPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function AcceptInvitationPage() {
+  return (
+    <Suspense fallback={
+      <div className={styles.container}>
+        <div className={styles.card}>
+          <div className={styles.loading}>
+            <div className={styles.spinner}></div>
+            <p>Loading...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <AcceptInvitationContent />
+    </Suspense>
   );
 }
 
