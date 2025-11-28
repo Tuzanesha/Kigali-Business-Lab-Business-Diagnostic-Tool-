@@ -23,14 +23,27 @@ from .models import Category, Question, Enterprise, QuestionResponse, ScoreSumma
 
 # Utility function to check if user is a team member (not an owner)
 def is_team_member_only(user):
-    """Check if user is ONLY a team member (not an owner of any enterprise)."""
+    """
+    Check if user is ONLY a team member (not an owner of any enterprise).
+    
+    Logic:
+    - If user owns any enterprise → False (they're an owner)
+    - If user has active team memberships → True (they're a team member)
+    - If user has no enterprises and no team memberships → False (new user, treated as owner)
+    """
     from django.contrib.auth import get_user_model
     User = get_user_model()
     # If user owns any enterprise, they're not a team member only
     if Enterprise.objects.filter(owner=user).exists():
         return False
-    # Check if user is an active team member
-    return TeamMember.objects.filter(user=user, status=TeamMember.STATUS_ACTIVE).exists()
+    # Check if user is an active team member (invited and accepted)
+    has_active_membership = TeamMember.objects.filter(
+        user=user, 
+        status=TeamMember.STATUS_ACTIVE
+    ).exists()
+    # Only return True if they have active team membership
+    # New users without memberships are treated as owners (False)
+    return has_active_membership
 from .serializers import (
     CategorySerializer,
     QuestionSerializer,
@@ -1899,6 +1912,21 @@ class TeamMemberPortalView(APIView):
             user=user, 
             status=TeamMember.STATUS_ACTIVE
         ).select_related('enterprise').exclude(enterprise__owner=user)
+        
+        # If user has no enterprises and no team memberships, they're a new owner (not a team member)
+        if not memberships.exists():
+            return Response({
+                'detail': 'You are not a team member. New users should create an enterprise profile.',
+                'is_owner': False,  # Not an owner yet, but not a team member either
+                'is_team_member_only': False,  # New user, not a team member
+                'user': {
+                    'id': user.id,
+                    'email': user.email,
+                    'full_name': f"{user.first_name} {user.last_name}".strip() or user.email
+                },
+                'enterprises': [],
+                'total_enterprises': 0
+            }, status=403)
         
         enterprises_data = []
         for membership in memberships:

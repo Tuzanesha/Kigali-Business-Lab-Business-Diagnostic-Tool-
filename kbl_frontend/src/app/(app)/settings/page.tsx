@@ -999,12 +999,43 @@ export default function SettingsPage() {
           return;
         }
         
-        // Try to access team portal - if it fails with is_owner, user is owner
+        // FIRST: Check if user is an owner by trying to access enterprise profile
+        // New users who register are owners (even if they haven't created enterprise yet)
+        let isOwner = false;
+        try {
+          await enterpriseApi.getProfile(access);
+          // If they can access enterprise profile endpoint (even if 404), they're an owner
+          // The endpoint exists for owners, team members can't access it
+          isOwner = true;
+        } catch (enterpriseError: any) {
+          // 404 means no enterprise yet, but user is still an owner (new user)
+          // 403 means not authorized - but owners should be able to access
+          if (enterpriseError?.status === 404) {
+            // No enterprise yet, but user is an owner (newly registered)
+            isOwner = true;
+          } else if (enterpriseError?.status === 403) {
+            // Not authorized - might be team member
+            isOwner = false;
+          } else {
+            // Other error - assume owner (new user)
+            isOwner = true;
+          }
+        }
+        
+        // If user is an owner, they're not a team member only
+        if (isOwner) {
+          setIsTeamMemberOnly(false);
+          setIsCheckingRole(false);
+          return;
+        }
+        
+        // SECOND: Only if not an owner, check if they're a team member
+        // Team members are users who were invited and accepted invitation
         try {
           const portalData = await teamApi.getPortal(access);
-          // Check if user is team member only (not owner)
+          // If portal returns data with is_team_member_only flag, they're a team member
           const isTeamMember = portalData.is_team_member_only === true || 
-            (portalData.is_owner === false && portalData.total_enterprises > 0);
+            (portalData.total_enterprises > 0 && portalData.is_owner === false);
           setIsTeamMemberOnly(isTeamMember);
           
           // If team member tries to access restricted tab, redirect to Profile
@@ -1018,23 +1049,17 @@ export default function SettingsPage() {
           // If 403 with is_owner flag, user is owner (not team member only)
           if (portalError?.status === 403 && portalError?.data?.is_owner) {
             setIsTeamMemberOnly(false);
-            // Owner can access all tabs - don't override activeTab
-            setIsCheckingRole(false);
-            return;
-          }
-          // If other error, try checking if they can access enterprise profile
-          try {
-            await enterpriseApi.getProfile(access);
-            // If they can access enterprise profile, they're an owner
+          } else if (portalError?.status === 403 && portalError?.data?.is_team_member_only === false) {
+            // If 403 with is_team_member_only: false, user is new owner (not team member)
             setIsTeamMemberOnly(false);
-          } catch {
-            // If they can't access enterprise profile either, might be team member
-            // But don't assume - default to false (owner)
+          } else {
+            // If portal fails and user is not an owner, they might be a team member
+            // But to be safe, default to false (assume owner/new user)
             setIsTeamMemberOnly(false);
           }
         }
       } catch (e: any) {
-        // Default to false (owner or not logged in)
+        // Default to false (owner or new user)
         setIsTeamMemberOnly(false);
       } finally {
         setIsCheckingRole(false);

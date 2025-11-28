@@ -104,24 +104,60 @@ export function Sidebar({ isOpen }: SidebarProps) {
       try {
         const accessToken = getAccessToken();
         if (!accessToken) return;
-        const portalData = await teamApi.getPortal(accessToken);
-        // Check if user is team member only (not owner)
-        // If is_team_member_only is explicitly set to true, or if they have enterprises but is_owner is false
-        setIsTeamMemberOnly(
-          portalData.is_team_member_only === true || 
-          (portalData.is_owner === false && portalData.total_enterprises > 0)
-        );
-      } catch (e: any) {
-        // If 403 with is_owner flag, user is owner (not team member only)
-        if (e?.status === 403 && e?.data?.is_owner) {
-          setIsTeamMemberOnly(false);
-        } else if (e?.status === 403 && e?.data?.redirect_to === '/team-portal') {
-          // If redirected to team portal, they're a team member
-          setIsTeamMemberOnly(true);
-        } else {
-          // Default to false (owner or not logged in)
-          setIsTeamMemberOnly(false);
+        
+        // FIRST: Check if user is an owner by trying to access enterprise profile
+        // New users who register are owners (even if they haven't created enterprise yet)
+        let isOwner = false;
+        try {
+          await enterpriseApi.getProfile(accessToken);
+          // If they can access enterprise profile endpoint, they're an owner
+          isOwner = true;
+        } catch (enterpriseError: any) {
+          // 404 means no enterprise yet, but user is still an owner (new user)
+          if (enterpriseError?.status === 404) {
+            isOwner = true;
+          } else if (enterpriseError?.status === 403) {
+            // Not authorized - might be team member
+            isOwner = false;
+          } else {
+            // Other error - assume owner (new user)
+            isOwner = true;
+          }
         }
+        
+        // If user is an owner, they're not a team member only
+        if (isOwner) {
+          setIsTeamMemberOnly(false);
+          return;
+        }
+        
+        // SECOND: Only if not an owner, check if they're a team member
+        // Team members are users who were invited and accepted invitation
+        try {
+          const portalData = await teamApi.getPortal(accessToken);
+          // If portal returns data with is_team_member_only flag, they're a team member
+          setIsTeamMemberOnly(
+            portalData.is_team_member_only === true || 
+            (portalData.total_enterprises > 0 && portalData.is_owner === false)
+          );
+        } catch (e: any) {
+          // If 403 with is_owner flag, user is owner (not team member only)
+          if (e?.status === 403 && e?.data?.is_owner) {
+            setIsTeamMemberOnly(false);
+          } else if (e?.status === 403 && e?.data?.is_team_member_only === false) {
+            // If 403 with is_team_member_only: false, user is new owner (not team member)
+            setIsTeamMemberOnly(false);
+          } else if (e?.status === 403 && e?.data?.redirect_to === '/team-portal') {
+            // If redirected to team portal, they're a team member
+            setIsTeamMemberOnly(true);
+          } else {
+            // Default to false (owner or new user)
+            setIsTeamMemberOnly(false);
+          }
+        }
+      } catch (e: any) {
+        // Default to false (owner or new user)
+        setIsTeamMemberOnly(false);
       }
     };
     
