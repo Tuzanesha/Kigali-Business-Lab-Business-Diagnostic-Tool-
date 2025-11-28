@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import styles from './assessments.module.css';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { assessmentApi, getAccessToken } from '../../../lib/api';
+import { assessmentApi, teamApi, enterpriseApi, getAccessToken } from '../../../lib/api';
 
 type AssessmentItem = { 
   id: number; 
@@ -34,6 +34,37 @@ export default function AssessmentsPage() {
         toast.dismiss(id); 
         router.push('/login'); 
         return; 
+      }
+      
+      // Check if user is a team member - if so, redirect to team portal
+      try {
+        const portalData = await teamApi.getPortal(access);
+        const isTeamMember = portalData.is_team_member_only === true || 
+          (portalData.total_enterprises > 0 && portalData.is_owner === false);
+        if (isTeamMember) {
+          toast.dismiss(id);
+          toast.error('Team members should use the Team Portal', { duration: 2000 });
+          router.push('/team-portal');
+          return;
+        }
+      } catch (portalError: any) {
+        // If 403 with is_owner flag, user is owner - continue
+        if (portalError?.status === 403 && portalError?.data?.is_owner) {
+          // Owner - continue
+        } else if (portalError?.status === 403 && portalError?.data?.is_team_member_only === false) {
+          // New user (not team member) - continue
+        } else {
+          // Try to check enterprise profile to determine if owner
+          try {
+            await enterpriseApi.getProfile(access);
+            // Can access enterprise profile - owner, continue
+          } catch {
+            // Can't access - might be team member, redirect
+            toast.dismiss(id);
+            router.push('/team-portal');
+            return;
+          }
+        }
       }
       
       const response = await assessmentApi.getSessions(access);

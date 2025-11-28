@@ -114,7 +114,7 @@ import toast from 'react-hot-toast';
 import styles from './dashboard.module.css';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { dashboardApi, enterpriseApi, profileApi, assessmentApi, catalogApi, getAccessToken} from '../../../lib/api';
+import { dashboardApi, enterpriseApi, profileApi, assessmentApi, catalogApi, teamApi, getAccessToken} from '../../../lib/api';
 
 const NewUserWelcome = () => {
   return (
@@ -367,6 +367,7 @@ const ExistingUserDashboard = () => {
 
 
 export default function DashboardPageController() {
+  const router = useRouter();
   const [hasEnterpriseProfile, setHasEnterpriseProfile] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -380,20 +381,61 @@ export default function DashboardPageController() {
           setIsLoading(false);
           return;
         }
+        
+        // FIRST: Check if user is a team member - if so, redirect to team portal
+        try {
+          const portalData = await teamApi.getPortal(access);
+          // If portal returns data with is_team_member_only flag, they're a team member
+          const isTeamMember = portalData.is_team_member_only === true || 
+            (portalData.total_enterprises > 0 && portalData.is_owner === false);
+          if (isTeamMember) {
+            toast.dismiss(id);
+            toast.error('Team members should use the Team Portal', { duration: 2000 });
+            router.push('/team-portal');
+            return;
+          }
+        } catch (portalError: any) {
+          // If 403 with is_owner flag, user is owner - continue
+          if (portalError?.status === 403 && portalError?.data?.is_owner) {
+            // Owner - continue to check enterprise profile
+          } else if (portalError?.status === 403 && portalError?.data?.is_team_member_only === false) {
+            // New user (not team member) - continue
+          } else {
+            // Try to check enterprise profile to determine if owner
+            try {
+              await enterpriseApi.getProfile(access);
+              // Can access enterprise profile - owner, continue
+            } catch {
+              // Can't access - might be team member, redirect to be safe
+              toast.dismiss(id);
+              router.push('/team-portal');
+              return;
+            }
+          }
+        }
+        
+        // SECOND: Check enterprise profile for owners
         // If enterprise profile exists, backend returns 200; otherwise 404
         await enterpriseApi.getProfile(access);
         setHasEnterpriseProfile(true);
         toast.success('Welcome back!', { id });
       } catch (e:any) {
-        // 404 means no enterprise yet
-        setHasEnterpriseProfile(false);
+        // 404 means no enterprise yet (new owner)
+        if (e?.status === 404) {
+          setHasEnterpriseProfile(false);
+        } else {
+          // Other error - might be team member, redirect
+          toast.dismiss(id);
+          router.push('/team-portal');
+          return;
+        }
         toast.dismiss(id);
       } finally {
         setIsLoading(false);
       }
     };
     checkUserProfile();
-  }, []);
+  }, [router]);
 
   if (isLoading) {
     return <div className={styles['dashboard-page']}>Loading...</div>; 

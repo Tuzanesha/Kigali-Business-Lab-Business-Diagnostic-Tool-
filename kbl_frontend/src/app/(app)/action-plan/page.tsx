@@ -171,6 +171,37 @@ export default function ActionPlanPage() {
           return; 
         }
         
+        // Check if user is a team member - if so, redirect to team portal
+        try {
+          const portalData = await teamApi.getPortal(accessToken);
+          const isTeamMember = portalData.is_team_member_only === true || 
+            (portalData.total_enterprises > 0 && portalData.is_owner === false);
+          if (isTeamMember) {
+            toast.dismiss(id);
+            toast.error('Team members should use the Team Portal', { duration: 2000 });
+            window.location.href = '/team-portal';
+            return;
+          }
+        } catch (portalError: any) {
+          // If 403 with is_owner flag, user is owner - continue
+          if (portalError?.status === 403 && portalError?.data?.is_owner) {
+            // Owner - continue
+          } else if (portalError?.status === 403 && portalError?.data?.is_team_member_only === false) {
+            // New user (not team member) - continue
+          } else {
+            // Try to check enterprise profile to determine if owner
+            try {
+              await enterpriseApi.getProfile(accessToken);
+              // Can access enterprise profile - owner, continue
+            } catch {
+              // Can't access - might be team member, redirect
+              toast.dismiss(id);
+              window.location.href = '/team-portal';
+              return;
+            }
+          }
+        }
+        
         // Load action board
         const board = await actionItemApi.getBoard(accessToken);
         setColumns({

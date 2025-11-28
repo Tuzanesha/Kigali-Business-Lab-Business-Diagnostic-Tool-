@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { Eye, EyeOff, Mail, Lock, ArrowRight } from 'lucide-react';
-import { authApi, checkAuth } from '@/lib/api';
+import { authApi, checkAuth, teamApi, enterpriseApi } from '@/lib/api';
 import styles from './login.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -30,6 +30,33 @@ function LoginPageContent() {
           if (needsVerification) {
             router.push('/verification-status?verification=pending');
           } else {
+            // Check if user is team member and redirect accordingly
+            const access = localStorage.getItem('accessToken');
+            if (access) {
+              try {
+                const portalData = await teamApi.getPortal(access);
+                const isTeamMember = portalData.is_team_member_only === true || 
+                  (portalData.total_enterprises > 0 && portalData.is_owner === false);
+                if (isTeamMember) {
+                  router.push('/team-portal');
+                  return;
+                }
+              } catch (portalError: any) {
+                // If error, assume owner and go to dashboard
+                if (portalError?.status === 403 && portalError?.data?.is_owner) {
+                  router.push('/dashboard');
+                  return;
+                }
+                // Try enterprise profile check
+                try {
+                  await enterpriseApi.getProfile(access);
+                  router.push('/dashboard');
+                  return;
+                } catch {
+                  // Default to dashboard
+                }
+              }
+            }
             router.push('/dashboard');
           }
           return;
@@ -113,7 +140,40 @@ function LoginPageContent() {
       });
 
       if (status.verified) {
-        // Redirect to dashboard if verified
+        // Check if user is a team member and redirect accordingly
+        try {
+          const portalData = await teamApi.getPortal(access);
+          const isTeamMember = portalData.is_team_member_only === true || 
+            (portalData.total_enterprises > 0 && portalData.is_owner === false);
+          if (isTeamMember) {
+            // Team member - redirect to team portal
+            setTimeout(() => {
+              router.push('/team-portal');
+            }, 1000);
+            return;
+          }
+        } catch (portalError: any) {
+          // If 403 with is_owner flag, user is owner - continue to dashboard
+          if (portalError?.status === 403 && portalError?.data?.is_owner) {
+            // Owner - continue to dashboard
+          } else if (portalError?.status === 403 && portalError?.data?.is_team_member_only === false) {
+            // New user (not team member) - continue to dashboard
+          } else {
+            // Try to check enterprise profile to determine if owner
+            try {
+              await enterpriseApi.getProfile(access);
+              // Can access enterprise profile - owner, continue to dashboard
+            } catch {
+              // Can't access - might be team member, redirect to team portal
+              setTimeout(() => {
+                router.push('/team-portal');
+              }, 1000);
+              return;
+            }
+          }
+        }
+        
+        // Owner or new user - redirect to dashboard
         setTimeout(() => {
           router.push('/dashboard');
         }, 1000);
