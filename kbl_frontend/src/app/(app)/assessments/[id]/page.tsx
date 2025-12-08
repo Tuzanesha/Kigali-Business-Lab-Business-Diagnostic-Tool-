@@ -187,6 +187,22 @@ const AssessmentWizard = ({ enterpriseId, onComplete, onExit }: { enterpriseId: 
   }, []);
 
   const handleNext = () => {
+    // Validate that all questions in the current section are answered
+    const unansweredQuestions = questions.filter(q => {
+      const answer = answers[q.id];
+      return answer === undefined || answer === null || typeof answer !== 'number';
+    });
+
+    if (unansweredQuestions.length > 0) {
+      toast.error(
+        `Please answer all ${questions.length} question${questions.length > 1 ? 's' : ''} in this section before moving to the next section.`,
+        {
+          duration: 4000,
+        }
+      );
+      return;
+    }
+
     if (currentStepIndex < steps.length - 1) {
       setCurrentStepIndex(currentStepIndex + 1);
     } else {
