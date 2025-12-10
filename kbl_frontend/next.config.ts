@@ -15,8 +15,17 @@ const nextConfig: NextConfig = {
     // TODO: Fix ESLint errors (unused vars, unescaped entities, etc.)
     ignoreDuringBuilds: true,
   },
-  webpack: (config) => {
+  webpack: (config, { dev, isServer }) => {
     config.stats = 'errors-warnings';
+    
+    // Enable polling for file watching on Docker/macOS to avoid error -35
+    if (dev && !isServer) {
+      config.watchOptions = {
+        poll: 1000, // Check for changes every second
+        aggregateTimeout: 300, // Delay before rebuilding
+      };
+    }
+    
     return config;
   },
 

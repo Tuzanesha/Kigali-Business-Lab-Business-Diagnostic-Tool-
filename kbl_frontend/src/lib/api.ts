@@ -1,48 +1,32 @@
-// api.ts — Clean, Docker-aware API client for Next.js + Django (JWT)
+// api.ts — Clean API client for Next.js + Django (JWT)
+// Works for both development (localhost) and production (Render)
 // ===================================================================
 
 export type JwtPair = { access: string; refresh: string };
 
 // -------------------------------------------------------------------
-// Base URL selection (browser vs server)
-const getApiBaseUrl = () => {
-  // Production: Use environment variable (set in Render)
-  // Development: Use localhost URLs
-  if (typeof window !== "undefined") {
-    // Browser environment
-    // Check for production API URL first
-    const prodUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (prodUrl) {
-      // Ensure /api is included if not already present
-      const url = prodUrl.endsWith('/api') ? prodUrl : `${prodUrl.replace(/\/+$/, '')}/api`;
-      return url;
-    }
-    
-    // Development: use direct backend URL to bypass proxy/nginx HTTPS issues
-    // Backend routes are under /api/ prefix, so include it
-    const directUrl = "http://localhost:8000/api";
-    return directUrl;
-  } else {
-    // Server-side rendering
-    // Production: Use environment variable
-    const prodUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (prodUrl) {
-      // Ensure /api is included if not already present
-      return prodUrl.endsWith('/api') ? prodUrl : `${prodUrl.replace(/\/+$/, '')}/api`;
-    }
-    
-    // Development: use direct backend URL (no /api needed for internal calls)
-    const url = process.env.NEXT_PUBLIC_API_URL_SERVER || "http://web:8000";
-    return url;
+// Base URL selection - SIMPLIFIED for reliability
+const getApiBaseUrl = (): string => {
+  // 1. Check for environment variable (set in production or docker-compose)
+  const envUrl = process.env.NEXT_PUBLIC_API_URL;
+  
+  if (envUrl) {
+    // Production or explicitly configured
+    // Ensure URL ends with /api
+    const cleanUrl = envUrl.replace(/\/+$/, '');
+    return cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
   }
+  
+  // 2. Development fallback - use direct backend URL (port 8000)
+  // This avoids proxy/nginx issues on macOS Docker
+  return "http://localhost:8000/api";
 };
 
 const API_BASE_URL = getApiBaseUrl();
 
-// Debug logging in development
+// Debug logging in development (browser only)
 if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-  // eslint-disable-next-line no-console
-  console.log("API_BASE_URL configured as:", API_BASE_URL);
+  console.log("[API] Base URL:", API_BASE_URL);
 }
 
 const defaultHeaders = {
@@ -51,153 +35,50 @@ const defaultHeaders = {
 };
 
 // -------------------------------------------------------------------
-// Low-level fetch wrapper
+// Low-level fetch wrapper - SIMPLIFIED
 async function apiFetch<T = any>(
   endpoint: string,
   options: RequestInit = {},
   accessToken?: string
 ): Promise<T> {
-  // Clean and construct URL properly
-  let baseUrl = API_BASE_URL.replace(/\/+$/, ""); // Remove trailing slashes
-  // Ensure baseUrl ends with /api if it should
-  if (!baseUrl.includes("/api") && (baseUrl.includes("localhost:8085") || baseUrl.includes("127.0.0.1:8085"))) {
-    baseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
-    baseUrl = `${baseUrl}/api`;
-    if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-      // eslint-disable-next-line no-console
-      console.warn(`Added missing /api prefix. New baseUrl: ${baseUrl}`);
-    }
-  }
-  
-  const cleanEndpoint = endpoint.startsWith("/") ? endpoint.slice(1) : endpoint;
+  // Build URL
+  const baseUrl = API_BASE_URL.replace(/\/+$/, "");
+  const cleanEndpoint = endpoint.replace(/^\/+/, "");
   const url = `${baseUrl}/${cleanEndpoint}`;
 
-  // Debug logging in development
+  // Debug logging
   if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-    // eslint-disable-next-line no-console
-    console.log(`API Fetch: ${options.method || "GET"} ${url}`);
+    console.log(`[API] ${options.method || "GET"} ${url}`);
   }
 
-  // Ensure URL is valid and uses correct protocol - ALWAYS force HTTP for localhost
-  let finalUrl: string;
-  try {
-    const urlObj = new URL(url);
-    // Force HTTP for localhost in development to avoid SSL issues
-    if (urlObj.hostname === "localhost" || urlObj.hostname === "127.0.0.1") {
-      urlObj.protocol = "http:";
-      // Ensure port is included
-      if (!urlObj.port && urlObj.hostname === "localhost") {
-        // Port is already in host, so just reconstruct
-        finalUrl = `http://${urlObj.host}${urlObj.pathname}${urlObj.search}${urlObj.hash}`;
-      } else {
-        finalUrl = `http://${urlObj.host}${urlObj.pathname}${urlObj.search}${urlObj.hash}`;
-      }
-      if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-        // eslint-disable-next-line no-console
-        console.log(`Forced HTTP for localhost. Final URL: ${finalUrl}`);
-      }
-    } else {
-      finalUrl = url;
-    }
-  } catch (e) {
-    // If URL construction fails, use the original string but ensure HTTP for localhost
-    if (url.includes("localhost") || url.includes("127.0.0.1")) {
-      finalUrl = url.replace(/^https:\/\//i, "http://");
-      if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-        // eslint-disable-next-line no-console
-        console.warn(`Changed HTTPS to HTTP for localhost (fallback): ${finalUrl}`);
-      }
-    } else {
-      finalUrl = url;
-    }
-  }
-
-  // Final safety check: Ensure HTTP protocol for localhost
-  if (finalUrl.includes("localhost:8085") && finalUrl.startsWith("https://")) {
-    finalUrl = finalUrl.replace(/^https:\/\//, "http://");
-    if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-      // eslint-disable-next-line no-console
-      console.warn(`Final safety check: Forced HTTP protocol. URL: ${finalUrl}`);
-    }
-  }
-
-  // Debug: Log final URL before fetch
-  if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-    // eslint-disable-next-line no-console
-    console.log(`About to fetch: ${finalUrl}`);
-  }
-
+  // Build headers
   const headers = new Headers({
     ...defaultHeaders,
     ...(options.headers || {}),
-    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
   });
+  
+  if (accessToken) {
+    headers.set("Authorization", `Bearer ${accessToken}`);
+  }
 
+  // Don't set Content-Type for FormData (browser sets it with boundary)
   if (options.body instanceof FormData) {
     headers.delete("Content-Type");
   }
 
-  // Ensure finalUrl is an absolute URL and contains /api for localhost:8085
-  if (finalUrl.includes("localhost:8085") && !finalUrl.includes("/api")) {
-    // Insert /api after the host
-    finalUrl = finalUrl.replace(/^(http:\/\/localhost:8085)(\/|$)/, "http://localhost:8085/api/");
-    if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-      // eslint-disable-next-line no-console
-      console.warn(`Added missing /api prefix to final URL: ${finalUrl}`);
-    }
-  }
-
-  // Ensure the URL is absolutely correct before fetch
-  // Final verification: URL must contain /api and use http://
-  if (finalUrl.includes("localhost:8085")) {
-    if (!finalUrl.startsWith("http://localhost:8085/api")) {
-      // Reconstruct the URL properly
-      const urlMatch = finalUrl.match(/^https?:\/\/localhost:8085(.*)$/);
-      if (urlMatch) {
-        finalUrl = `http://localhost:8085/api${urlMatch[1]}`;
-        if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-          // eslint-disable-next-line no-console
-          console.warn(`Reconstructed URL to ensure /api prefix: ${finalUrl}`);
-        }
-      }
-    }
-  }
-
-  // Verify fetch hasn't been overridden/intercepted
-  if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-    // eslint-disable-next-line no-console
-    console.log(`Fetching with final URL string: ${finalUrl}`);
-    // Check if fetch has been modified
-    if ((window as any).__originalFetch) {
-      // eslint-disable-next-line no-console
-      console.warn("WARNING: fetch may have been overridden!");
-    }
-  }
-
-  // Create fetch options ensuring URL stays correct
-  const fetchOptions: RequestInit = {
+  // Make the request
+  const response = await fetch(url, {
     method: options.method || "GET",
     headers,
     mode: "cors",
     credentials: "omit",
-    ...options,
-    // Override body if it was in options
     body: options.body,
-  };
+  });
 
-  // Use native fetch with the exact URL string
-  const response = await fetch(finalUrl, fetchOptions);
-  
-  // Verify the response URL matches what we expected
-  if (typeof window !== "undefined" && process.env.NODE_ENV === "development" && response.url) {
-    if (response.url !== finalUrl && !response.url.includes("/api")) {
-      // eslint-disable-next-line no-console
-      console.error(`URL MISMATCH! Expected: ${finalUrl}, Response URL: ${response.url}`);
-    }
-  }
-
+  // Handle 204 No Content
   if (response.status === 204) return null as T;
 
+  // Parse response
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
@@ -429,10 +310,12 @@ export const verificationApi = {
 };
 
 // -------------------------------------------------------------------
-// Simple connectivity test (tries the configured API_BASE_URL health endpoint)
+// Simple connectivity test (tries the configured API base)
 export const testApiConnection = async (): Promise<{ connected: boolean; url: string; error?: string }> => {
   try {
-    const healthUrl = `${API_BASE_URL.replace(/\/+$/, "")}/health/`;
+    // Try the health endpoint (without /api since it's at root)
+    const baseWithoutApi = API_BASE_URL.replace(/\/api\/?$/, '');
+    const healthUrl = `${baseWithoutApi}/health/`;
     const res = await fetch(healthUrl, { method: "GET" });
     if (res.ok) return { connected: true, url: API_BASE_URL };
     return { connected: false, url: API_BASE_URL, error: `Health returned ${res.status}` };

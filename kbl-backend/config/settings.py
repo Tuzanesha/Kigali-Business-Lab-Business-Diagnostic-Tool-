@@ -143,16 +143,19 @@ SIMPLE_JWT = {
 }
 
 # CORS Settings
-CORS_ALLOW_ALL_ORIGINS = False
+# In development (DEBUG=True), allow all origins to avoid CORS issues
+# In production, use the explicit list below
+CORS_ALLOW_ALL_ORIGINS = DEBUG
 CORS_ALLOW_CREDENTIALS = True
 
-# CORS allowed origins
+# CORS allowed origins (used when CORS_ALLOW_ALL_ORIGINS is False)
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:8085",
     "http://localhost:8000",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:8000",
+    "http://127.0.0.1:8085",
 ]
 
 # Add frontend URL from environment
@@ -162,8 +165,8 @@ if frontend_url:
     if frontend_url not in CORS_ALLOWED_ORIGINS:
         CORS_ALLOWED_ORIGINS.append(frontend_url)
 
-# Add production frontend URL
-production_frontend = 'https://kigali-business-lab-business-diagnostic.onrender.com'
+# Add production frontend URL from environment variable
+production_frontend = os.getenv('PRODUCTION_FRONTEND_URL', 'https://kigali-business-lab-business-diagnostic.onrender.com')
 if production_frontend not in CORS_ALLOWED_ORIGINS:
     CORS_ALLOWED_ORIGINS.append(production_frontend)
 
@@ -195,11 +198,16 @@ CSRF_TRUSTED_ORIGINS = [
     'http://localhost:8000',
     'http://127.0.0.1:8000',
     'http://localhost:8085',
+    'http://localhost:3000',
     'https://business-diagnostic-tool.onrender.com',
 ]
 
+# Add production frontend URL
+if production_frontend and production_frontend not in CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS.append(production_frontend)
+
 # Add frontend URL to CSRF trusted origins
-if frontend_url and frontend_url.startswith('https://'):
+if frontend_url and frontend_url not in CSRF_TRUSTED_ORIGINS:
     CSRF_TRUSTED_ORIGINS.append(frontend_url)
 
 # Add extra CSRF origins from environment

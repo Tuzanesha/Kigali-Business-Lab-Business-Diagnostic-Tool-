@@ -7,6 +7,26 @@ set -e
 
 echo "🚀 Starting frontend container..."
 
+# Ensure we're in the correct directory
+cd /app || { echo "❌ Error: Cannot cd to /app"; exit 1; }
+echo "📁 Working directory: $(pwd)"
+
+# Set up environment variables for npm
+export HOME=/root
+export npm_config_cache=/tmp/.npm
+export npm_config_prefix=/app
+# Ensure node_modules/.bin is in PATH
+export PATH="/app/node_modules/.bin:$PATH"
+
+# Verify package.json exists
+if [ ! -f "package.json" ]; then
+  echo "❌ Error: package.json not found in /app"
+  echo "   Current directory contents:"
+  ls -la /app | head -20
+  exit 1
+fi
+echo "✅ Found package.json"
+
 # STEP 1: Remove ALL .env files from mounted volume to prevent macOS Docker read errors
 # This must happen BEFORE Next.js tries to read them
 echo "📝 Step 1: Removing problematic .env files from mounted volume..."
@@ -38,9 +58,79 @@ rm -rf /tmp/env-safe
 rm -rf node_modules/.vite 2>/dev/null || true
 
 # STEP 4: Install dependencies if needed
-if [ ! -d "node_modules" ] || [ ! -f "node_modules/.package-lock.json" ]; then
+# Check if next binary exists, not just if node_modules exists
+NEXT_BIN="./node_modules/.bin/next"
+NEXT_BIN_ABS="/app/node_modules/.bin/next"
+
+# Check if we need to install
+NEED_INSTALL=false
+if [ ! -d "node_modules" ]; then
+  NEED_INSTALL=true
+  echo "📦 node_modules directory not found, will install dependencies"
+elif [ ! -f "$NEXT_BIN" ] && [ ! -f "$NEXT_BIN_ABS" ]; then
+  NEED_INSTALL=true
+  echo "📦 node_modules exists but 'next' binary not found, will install dependencies"
+  echo "   Note: node_modules is a Docker volume, cannot remove it - will install into it"
+elif [ ! -f "package-lock.json" ]; then
+  NEED_INSTALL=true
+  echo "📦 package-lock.json not found, will install dependencies"
+fi
+
+if [ "$NEED_INSTALL" = "true" ]; then
   echo "📦 Installing dependencies..."
-  npm install --legacy-peer-deps
+  echo "   Node version: $(node --version)"
+  echo "   NPM version: $(npm --version)"
+  echo "   Current directory: $(pwd)"
+  echo "   Package.json exists: $([ -f package.json ] && echo 'yes' || echo 'no')"
+  
+  # Ensure npm cache directory exists
+  mkdir -p /tmp/.npm
+  mkdir -p /root/.npm
+  
+  # Clear any problematic npm cache
+  npm cache clean --force 2>/dev/null || true
+  
+  # Install dependencies (npm install will work even if node_modules exists but is incomplete)
+  echo "   Starting npm install (this may take several minutes on first run)..."
+  echo "   Please wait, installing packages..."
+  
+  # Run npm install with progress output
+  if npm install --legacy-peer-deps; then
+    echo "   ✅ npm install completed successfully"
+  else
+    echo "   ⚠️  First npm install attempt failed, trying with --force..."
+    if npm install --legacy-peer-deps --force; then
+      echo "   ✅ npm install completed successfully (with --force)"
+    else
+      echo "❌ npm install failed completely"
+      echo "   Attempting to diagnose..."
+      echo "   PWD: $(pwd)"
+      echo "   HOME: ${HOME:-NOT SET}"
+      echo "   NPM cache: ${npm_config_cache:-NOT SET}"
+      echo "   Checking node_modules:"
+      ls -la node_modules 2>/dev/null | head -5 || echo "   node_modules does not exist or is not accessible"
+      echo "   Checking package.json:"
+      cat package.json | head -20
+      exit 1
+    fi
+  fi
+  
+  # Verify next is installed (check both relative and absolute paths)
+  if [ ! -f "$NEXT_BIN" ] && [ ! -f "$NEXT_BIN_ABS" ]; then
+    echo "❌ Error: 'next' binary still not found after installation"
+    echo "   Checking node_modules/.bin contents:"
+    if [ -d "node_modules/.bin" ]; then
+      ls -la node_modules/.bin/ | head -10
+    else
+      echo "   node_modules/.bin does not exist"
+    fi
+    echo "   Checking if node_modules/next exists:"
+    ls -la node_modules/next 2>/dev/null | head -5 || echo "   node_modules/next does not exist"
+    exit 1
+  fi
+  echo "✅ Dependencies installed (next binary found)"
+else
+  echo "✅ Dependencies already installed (next binary found)"
 fi
 
 # STEP 5: Verify environment variables
@@ -53,5 +143,27 @@ echo "   .env files are empty placeholders to prevent read errors"
 
 # STEP 6: Start Next.js dev server
 echo "🎯 Starting Next.js development server..."
-exec npm run dev
+echo "   Binding to 0.0.0.0:3000 to allow external connections"
+
+# Verify next binary exists before starting (check both paths)
+if [ -f "$NEXT_BIN" ]; then
+  NEXT_CMD="$NEXT_BIN"
+elif [ -f "$NEXT_BIN_ABS" ]; then
+  NEXT_CMD="$NEXT_BIN_ABS"
+elif command -v next >/dev/null 2>&1; then
+  NEXT_CMD="next"
+else
+  echo "❌ Error: 'next' binary not found"
+  echo "   Checked: $NEXT_BIN"
+  echo "   Checked: $NEXT_BIN_ABS"
+  echo "   Checked: PATH ($(which next || echo 'not in PATH'))"
+  echo "   Please ensure dependencies are installed"
+  exit 1
+fi
+
+echo "   Using next binary: $NEXT_CMD"
+
+# Use --hostname 0.0.0.0 to bind to all interfaces, not just localhost
+# This is required for Docker containers to accept external connections
+exec "$NEXT_CMD" dev --hostname 0.0.0.0
 

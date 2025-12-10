@@ -47,11 +47,15 @@ services:
       - key: DEFAULT_FROM_EMAIL
         sync: false
       - key: PUBLIC_BASE_URL
-        sync: false
+        value: https://business-diagnostic-tool.onrender.com
       - key: FRONTEND_URL
-        sync: false
+        value: https://kigali-business-lab-business-diagnostic.onrender.com
       - key: BACKEND_BASE_URL
-        sync: false
+        value: https://business-diagnostic-tool.onrender.com
+      - key: PRODUCTION_BACKEND_URL
+        value: https://business-diagnostic-tool.onrender.com
+      - key: PRODUCTION_FRONTEND_URL
+        value: https://kigali-business-lab-business-diagnostic.onrender.com
     healthCheckPath: /health/
     buildCommand: ""
     startCommand: chmod +x start.sh && ./start.sh

@@ -240,6 +240,42 @@ const AssessmentWizard = ({ enterpriseId, onComplete, onExit }: { enterpriseId: 
     }
   };
 
+  const handleSaveAndExit = async () => {
+    const access = getAccessToken();
+    if (!access) {
+      toast.error('You must be logged in to save your progress.');
+      return;
+    }
+
+    // Collect all answered questions so far
+    const payload: Array<{question_id: number; score: number; evidence?: string; comments?: string;}> = [];
+    for (const stepName of steps) {
+      for (const q of (questionsByStep[stepName] || [])) {
+        const score = answers[q.id];
+        if (typeof score === 'number') {
+          payload.push({ question_id: q.backendId, score });
+        }
+      }
+    }
+
+    if (payload.length === 0) {
+      toast.error('No answers to save. Please answer at least one question before saving.');
+      return;
+    }
+
+    const id = toast.loading('Saving your progress...');
+    try {
+      await enterpriseApi.submitAnswers(access, enterpriseId, payload);
+      toast.success('Your progress has been saved successfully!', { id, duration: 3000 });
+      // Wait a bit for the toast to show, then exit
+      setTimeout(() => {
+        onExit();
+      }, 500);
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to save your progress. Please try again.', { id, duration: 4000 });
+    }
+  };
+
   const handlePrev = () => { if (currentStepIndex > 0) { setCurrentStepIndex(currentStepIndex - 1); } };
   const handleFileChange = (file: File) => { setFiles(prevFiles => ({ ...prevFiles, [currentStepName]: file })); };
   const handleFileRemove = () => { setFiles(prevFiles => ({ ...prevFiles, [currentStepName]: null })); };
@@ -248,7 +284,7 @@ const AssessmentWizard = ({ enterpriseId, onComplete, onExit }: { enterpriseId: 
     return <div className={styles['wizard-page']}><header className={styles['page-header']}><h1 className={styles['page-title']}>NEW ASSESSMENT</h1></header><div className={styles['questions-card']}>Loading...</div></div>;
   }
 
-  return ( <div className={styles['wizard-page']}><header className={styles['page-header']}><h1 className={styles['page-title']}>NEW ASSESSMENT</h1></header><div className={styles['stepper-card']}><div className={styles['stepper-header']}><p className={styles['stepper-title']}>PROGRESS</p><p className={styles['stepper-progress']}>Step {currentStepIndex + 1} of {steps.length }</p></div><div className={styles['stepper-track']}>{steps.map((step, index) => (<div key={step} className={`${styles.step} ${index === currentStepIndex ? styles.active : ''} ${index < currentStepIndex ? styles.completed : ''}`}><div className={styles['step-circle']}>{index < currentStepIndex ? <Check size={14} /> : index + 1}</div><p className={styles['step-label']}>{step}</p></div>))}</div></div><div className={styles['questions-card']}><div className={styles['questions-header']}><h2 className={styles['questions-title']}>SECTION {currentStepIndex + 1}: {currentStepName.toUpperCase()}</h2><p className={styles['questions-counter']}>Questions 1-{questions.length}</p></div>{questions.map((q) => <Question key={q.id} question={q} answer={answers[q.id]} onAnswerChange={(id, value) => setAnswers({ ...answers, [id]: value })} />)}<FileUpload file={files[currentStepName] || null} onFileChange={handleFileChange} onFileRemove={handleFileRemove} /></div><div className={styles['wizard-nav']}><button onClick={handlePrev} disabled={currentStepIndex === 0} className={`${styles['nav-button']} ${styles['nav-button-secondary']}`}>Previous Section</button><div><button onClick={onExit} className={`${styles['nav-button']} ${styles['nav-button-tertiary']}`} style={{ marginRight: '1rem' }}>Save & Exit</button><button onClick={handleNext} className={`${styles['nav-button']} ${styles['nav-button-primary']}`}>{currentStepIndex === steps.length - 1 ? 'Finish & View Report' : 'Next Section'}</button></div></div></div> );
+  return ( <div className={styles['wizard-page']}><header className={styles['page-header']}><h1 className={styles['page-title']}>NEW ASSESSMENT</h1></header><div className={styles['stepper-card']}><div className={styles['stepper-header']}><p className={styles['stepper-title']}>PROGRESS</p><p className={styles['stepper-progress']}>Step {currentStepIndex + 1} of {steps.length }</p></div><div className={styles['stepper-track']}>{steps.map((step, index) => (<div key={step} className={`${styles.step} ${index === currentStepIndex ? styles.active : ''} ${index < currentStepIndex ? styles.completed : ''}`}><div className={styles['step-circle']}>{index < currentStepIndex ? <Check size={14} /> : index + 1}</div><p className={styles['step-label']}>{step}</p></div>))}</div></div><div className={styles['questions-card']}><div className={styles['questions-header']}><h2 className={styles['questions-title']}>SECTION {currentStepIndex + 1}: {currentStepName.toUpperCase()}</h2><p className={styles['questions-counter']}>Questions 1-{questions.length}</p></div>{questions.map((q) => <Question key={q.id} question={q} answer={answers[q.id]} onAnswerChange={(id, value) => setAnswers({ ...answers, [id]: value })} />)}<FileUpload file={files[currentStepName] || null} onFileChange={handleFileChange} onFileRemove={handleFileRemove} /></div><div className={styles['wizard-nav']}><button onClick={handlePrev} disabled={currentStepIndex === 0} className={`${styles['nav-button']} ${styles['nav-button-secondary']}`}>Previous Section</button><div><button onClick={handleSaveAndExit} className={`${styles['nav-button']} ${styles['nav-button-tertiary']}`} style={{ marginRight: '1rem' }}>Save & Exit</button><button onClick={handleNext} className={`${styles['nav-button']} ${styles['nav-button-primary']}`}>{currentStepIndex === steps.length - 1 ? 'Finish & View Report' : 'Next Section'}</button></div></div></div> );
 };
 
 // Enhanced CategoryItem with advice for low scores
