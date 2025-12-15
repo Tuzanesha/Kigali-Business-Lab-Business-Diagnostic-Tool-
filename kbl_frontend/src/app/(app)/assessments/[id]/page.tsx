@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
@@ -8,7 +7,6 @@ import styles from './assessment.module.css';
 import { Check, UploadCloud, File as FileIcon, X, AlertTriangle, ChevronDown, Download, Lightbulb, TrendingUp } from 'lucide-react';
 import { catalogApi, enterpriseApi, getAccessToken } from '../../../../lib/api';
 
-// ... (KEEP YOUR CATEGORY_ADVICE and getAdviceForCategory functions HERE - Same as before) ...
 const CATEGORY_ADVICE: Record<string, { tips: string[]; resources: string[] }> = {
   'LEADERSHIP': {
     tips: [
@@ -20,12 +18,101 @@ const CATEGORY_ADVICE: Record<string, { tips: string[]; resources: string[] }> =
     ],
     resources: ['Leadership workshops', 'Executive coaching']
   },
-  // ... Add the rest of your advice object here just like you had it ...
+  'ORGANISATION & STAFF': {
+    tips: [
+      'Document key processes and create standard operating procedures (SOPs)',
+      'Implement a structured onboarding program for new employees',
+      'Conduct regular performance reviews and provide constructive feedback',
+      'Invest in employee training and professional development',
+      'Create clear job descriptions and organizational charts'
+    ],
+    resources: ['HR management tools', 'Employee engagement surveys', 'Training platforms']
+  },
+  'PRODUCT & PROCESSING': {
+    tips: [
+      'Implement quality control measures at each stage of production',
+      'Regularly gather customer feedback to improve product quality',
+      'Optimize production processes to reduce waste and increase efficiency',
+      'Invest in equipment maintenance and upgrades when needed',
+      'Document and standardize production procedures'
+    ],
+    resources: ['Quality management systems', 'Lean manufacturing training', 'Process optimization consultants']
+  },
+  'SERVICE DEVELOPMENT & DELIVERY': {
+    tips: [
+      'Map the customer journey to identify pain points and improvement areas',
+      'Train staff on customer service best practices',
+      'Implement a system for tracking and resolving customer complaints',
+      'Regularly measure customer satisfaction through surveys',
+      'Create service standards and ensure consistent delivery'
+    ],
+    resources: ['Customer service training', 'CRM software', 'Mystery shopping programs']
+  },
+  'MARKET ANALYSIS & MARKETING': {
+    tips: [
+      'Conduct regular market research to understand customer needs',
+      'Develop a clear brand identity and messaging strategy',
+      'Create a marketing plan with specific goals and metrics',
+      'Leverage digital marketing channels effectively',
+      'Monitor competitor activities and market trends'
+    ],
+    resources: ['Market research tools', 'Digital marketing courses', 'Brand strategy consultants']
+  },
+  'SALES': {
+    tips: [
+      'Develop a structured sales process with clear stages',
+      'Train your team on consultative selling techniques',
+      'Set clear sales targets and track performance metrics',
+      'Build and maintain a healthy sales pipeline',
+      'Focus on customer relationship building for repeat business'
+    ],
+    resources: ['Sales training programs', 'CRM implementation', 'Sales coaching']
+  },
+  'FINANCIAL PLANNING & MANAGEMENT': {
+    tips: [
+      'Implement proper bookkeeping and accounting systems',
+      'Create monthly financial reports and review them regularly',
+      'Develop cash flow projections and monitor them closely',
+      'Separate personal and business finances completely',
+      'Build an emergency fund for unexpected expenses'
+    ],
+    resources: ['Accounting software', 'Financial literacy training', 'Business finance advisors']
+  },
+  'LEGAL & IT': {
+    tips: [
+      'Ensure all business registrations and licenses are up to date',
+      'Implement data backup and security measures',
+      'Review and update contracts and agreements regularly',
+      'Invest in appropriate technology to improve efficiency',
+      'Develop IT policies for staff including cybersecurity awareness'
+    ],
+    resources: ['Legal compliance checklists', 'IT security audits', 'Business software solutions']
+  }
 };
 
 const getAdviceForCategory = (categoryName: string): { tips: string[]; resources: string[] } => {
-  // Simplified for brevity in this snippet, use your full function
-  return { tips: ['Review current processes', 'Seek feedback'], resources: ['Workshops'] };
+  const normalizedName = categoryName.toUpperCase().trim();
+  
+  if (CATEGORY_ADVICE[normalizedName]) {
+    return CATEGORY_ADVICE[normalizedName];
+  }
+  
+  for (const key of Object.keys(CATEGORY_ADVICE)) {
+    if (normalizedName.includes(key) || key.includes(normalizedName)) {
+      return CATEGORY_ADVICE[key];
+    }
+  }
+  
+  return {
+    tips: [
+      'Review your current processes and identify areas for improvement',
+      'Seek feedback from customers and employees',
+      'Set specific, measurable goals for improvement',
+      'Consider training or consulting services in this area',
+      'Benchmark against industry best practices'
+    ],
+    resources: ['Business development workshops', 'Industry associations', 'Mentorship programs']
+  };
 };
 
 interface AssessmentReportProps {
@@ -50,7 +137,6 @@ const FileUpload = ({ file, onFileChange, onFileRemove }: { file: File | null, o
   return <div onDragEnter={handleDragIn} onDragLeave={handleDragOut} onDragOver={handleDrag} onDrop={handleDrop} className={`${styles['upload-zone']} ${isDragging ? styles.active : ''}`}><input type="file" id={uniqueId} hidden onChange={(e) => e.target.files && onFileChange(e.target.files[0])} /><label htmlFor={uniqueId} style={{ cursor: 'pointer' }}><UploadCloud className={styles['upload-icon']} size={48} /><p className={styles['upload-text-main']}>Click to upload evidence</p><p className={styles['upload-text-sub']}>or drag and drop PDF, DOCX</p></label></div>; 
 };
 
-// --- UPDATED QUESTION COMPONENT WITH CARDS ---
 const Question = ({ question, answer, onAnswerChange }: { question: {id: string, text: string, options: string[]}, answer: number, onAnswerChange: (id: string, value: number) => void }) => { 
   const [showGuidance, setShowGuidance] = useState(false); 
   
@@ -62,7 +148,6 @@ const Question = ({ question, answer, onAnswerChange }: { question: {id: string,
           <p className={styles['question-text']}>{question.text}</p>
           <p className={styles['question-subtext']}>Select the best description for your business</p>
           
-          {/* THE NEW CARD GRID */}
           <div className={styles['options-grid']}>
             {question.options.map((opt, i) => (
               <div 
@@ -201,10 +286,9 @@ const AssessmentWizard = ({ enterpriseId, onComplete, onExit }: { enterpriseId: 
       <div className={styles['wizard-page']}>
         <header className={styles['page-header']}>
           <h1 className={styles['page-title']}>DIAGNOSTIC ASSESSMENT</h1>
-          <p style={{color:'#64748b'}}>Evaluate your business health across key dimensions</p>
+          <p className={styles['page-subtitle']}>Evaluate your business health across key dimensions</p>
         </header>
         
-        {/* IMPROVED STEPPER */}
         <div className={styles['stepper-card']}>
           <div className={styles['stepper-header']}>
             <p className={styles['stepper-title']}>YOUR PROGRESS</p>
@@ -263,12 +347,6 @@ const AssessmentWizard = ({ enterpriseId, onComplete, onExit }: { enterpriseId: 
     </div>
   );
 };
-
-// ... (KEEP AssessmentReport, CategoryItem, NoEnterprisePrompt, and AssessmentPageController as they were in your code) ...
-// Ensure AssessmentPageController wraps AssessmentWizard with the same props.
-
-// [I've condensed the rest for brevity since you have it, but the key change was the Question component above]
-// Be sure to include the Report component code you had before here.
 
 const CategoryItem = ({ title, score, weighted, perfect, showAdvice = true }: any) => { 
   const [isOpen, setIsOpen] = useState(score < 50); 
@@ -348,122 +426,35 @@ const AssessmentReport = ({ enterpriseId, onRetake }: AssessmentReportProps) => 
     const tid = toast.loading('Generating PDF...');
     
     try {
-      // Dynamic import to avoid SSR issues
       const html2canvas = (await import('html2canvas')).default;
       const { jsPDF } = await import('jspdf');
       
-      const reportElement = reportRef.current;
-      
-      // Generate canvas with high quality
-      const canvas = await html2canvas(reportElement, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-        windowWidth: 1200, // Fixed width for consistent rendering
-      });
-      
+      const canvas = await html2canvas(reportRef.current, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
       const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4',
-      });
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
-      const margin = 10;
-      const headerHeight = 25;
-      const footerHeight = 10;
-      const contentWidth = pdfWidth - (margin * 2);
-      const contentHeight = pdfHeight - headerHeight - footerHeight;
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
       
-      // Calculate image dimensions to fit full page width
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      const imgRatio = imgWidth / imgHeight;
-      const scaledWidth = contentWidth;
-      const scaledHeight = scaledWidth / imgRatio;
-      
-      // Calculate total pages needed
-      const totalPages = Math.ceil(scaledHeight / contentHeight);
-      const date = new Date().toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      });
-      
-      // Helper to add header to each page
-      const addHeader = (pageNum: number) => {
-        // Header background
-        pdf.setFillColor(1, 73, 127);
-        pdf.rect(0, 0, pdfWidth, 20, 'F');
-        
-        // Header text
-        pdf.setFontSize(14);
-        pdf.setTextColor(255, 255, 255);
-        pdf.text('KIGALI BUSINESS LAB', margin, 8);
-        pdf.setFontSize(10);
-        pdf.text('Business Diagnostic Assessment Report', margin, 14);
-        
-        // Enterprise name on the right
-        pdf.setFontSize(10);
-        pdf.text(enterpriseName, pdfWidth - margin, 8, { align: 'right' });
-        pdf.text(date, pdfWidth - margin, 14, { align: 'right' });
-        
-        // Page number
-        if (totalPages > 1) {
-          pdf.setFontSize(8);
-          pdf.setTextColor(255, 255, 255);
-          pdf.text(`Page ${pageNum} of ${totalPages}`, pdfWidth / 2, 14, { align: 'center' });
-        }
-      };
-      
-      // Helper to add footer to each page
-      const addFooter = () => {
-        pdf.setFontSize(8);
-        pdf.setTextColor(128, 128, 128);
-        pdf.text('© Kigali Business Lab - Confidential', pdfWidth / 2, pdfHeight - 5, { align: 'center' });
-      };
-      
-      // Generate pages
-      for (let page = 0; page < totalPages; page++) {
-        if (page > 0) {
-          pdf.addPage();
-        }
-        
-        addHeader(page + 1);
-        
-        // Calculate source rectangle for this page
-        const sourceY = page * (contentHeight / scaledWidth * imgWidth);
-        const sourceHeight = Math.min(contentHeight / scaledWidth * imgWidth, imgHeight - sourceY);
-        
-        if (sourceHeight > 0) {
-          // Create a temporary canvas for this page section
-          const pageCanvas = document.createElement('canvas');
-          pageCanvas.width = imgWidth;
-          pageCanvas.height = sourceHeight;
-          const ctx = pageCanvas.getContext('2d');
-          if (ctx) {
-            ctx.drawImage(canvas, 0, sourceY, imgWidth, sourceHeight, 0, 0, imgWidth, sourceHeight);
-            const pageImgData = pageCanvas.toDataURL('image/png');
-            const pageImgHeight = sourceHeight / imgWidth * contentWidth;
-            pdf.addImage(pageImgData, 'PNG', margin, headerHeight, contentWidth, pageImgHeight);
-          }
-        }
-        
-        addFooter();
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+      heightLeft -= pdfHeight;
+
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+        heightLeft -= pdfHeight;
       }
       
-      // Save the PDF
-      const fileName = `KBL_Assessment_${enterpriseName.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
-      pdf.save(fileName);
-      
-      toast.success('PDF exported successfully!', { id: tid, duration: 3000 });
-    } catch (error: any) {
-      console.error('PDF export error:', error);
-      toast.error('Failed to export PDF. Please try again.', { id: tid, duration: 4000 });
+      pdf.save(`KBL_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+      toast.success('PDF exported!', { id: tid });
+    } catch (error) {
+      console.error(error);
+      toast.error('Export failed', { id: tid });
     } finally {
       setExporting(false);
     }
@@ -472,15 +463,13 @@ const AssessmentReport = ({ enterpriseId, onRetake }: AssessmentReportProps) => 
   const handleAddToActionPlan = (itemName: string) => {
     const tid = 'report-nav';
     toast.dismiss(tid);
-    const navigationPromise = new Promise<void>(resolve => setTimeout(resolve, 800));
     toast.loading(`Adding ${itemName} to Action Plan...`, { id: tid });
-    navigationPromise.then(() => {
+    setTimeout(() => {
       toast.success('Redirecting...', { id: tid, duration: 1200 });
       router.push('/action-plan/add');
-    });
+    }, 800);
   };
 
-  // Get low-scoring categories for summary
   const lowScoringCategories = Object.entries(sections)
     .filter(([_, v]: any) => Number(v?.percentage || 0) < 50)
     .sort((a: any, b: any) => Number(a[1]?.percentage || 0) - Number(b[1]?.percentage || 0));
@@ -633,42 +622,48 @@ const AssessmentReport = ({ enterpriseId, onRetake }: AssessmentReportProps) => 
   );
 };
 
-// Component shown when user has no enterprise profile
 const NoEnterprisePrompt = () => {
   const router = useRouter();
   return (
     <div className={styles['assessment-container']}>
       <div className={styles['wizard-page']}>
+        {/* Header - Matches the design requested */}
         <header className={styles['page-header']}>
           <h1 className={styles['page-title']}>CREATE ENTERPRISE FIRST</h1>
         </header>
-        <div className={styles['questions-card']} style={{ textAlign: 'center', padding: '3rem 2rem' }}>
-          <AlertTriangle size={64} style={{ color: '#f59e0b', marginBottom: '1.5rem' }} />
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '1rem', color: '#1e293b' }}>
+        
+        {/* Content Card with FIXED Button */}
+        <div className={styles['prompt-card']}>
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <AlertTriangle size={64} className={styles['prompt-icon']} />
+          </div>
+          <h2 className={styles['prompt-title']}>
             Enterprise Profile Required
           </h2>
-          <p style={{ fontSize: '1rem', color: '#64748b', marginBottom: '2rem', maxWidth: '500px', margin: '0 auto 2rem' }}>
+          <p className={styles['prompt-text']}>
             Before you can start an assessment, you need to create your enterprise profile. 
             This helps us tailor the diagnostic questions to your business.
           </p>
+          
           <button 
             onClick={() => router.push('/settings?tab=enterprise')}
             className={`${styles['nav-button']} ${styles['nav-button-primary']}`}
-            style={{ padding: '0.875rem 2rem', fontSize: '1rem' }}
+            style={{ width: 'auto', minWidth: '200px' }}
           >
             Create Enterprise Profile
           </button>
-          <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '1rem' }}>
-            Already have a profile? <button onClick={() => router.push('/dashboard')} style={{ color: '#01497f', textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer' }}>Go to Dashboard</button>
-          </p>
+          
+          <div style={{ marginTop: '1rem' }}>
+            <button onClick={() => router.push('/dashboard')} className={styles['prompt-link']}>
+              Already have a profile? Go to Dashboard
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
-
-// This must be the default export
 export default function AssessmentPageController() {
   const params = useParams();
   const router = useRouter();
@@ -684,7 +679,7 @@ export default function AssessmentPageController() {
       
       try {
         const prof = await enterpriseApi.getProfile(access);
-        if (prof?.id) {
+        if (prof?.id && prof?.exists !== false) {
             setEnterpriseId(Number(prof.id));
             if (pid && !isNaN(Number(pid))) {
                  try { await enterpriseApi.getReport(access, Number(prof.id)); setView('report'); } catch { setView('assessment'); }
@@ -698,8 +693,10 @@ export default function AssessmentPageController() {
     resolve();
   }, [params, router]);
 
-  if (isLoading) return <div>Loading...</div>;
-  if (view === 'no-enterprise') return <div className={styles['wizard-page']}>Please create an enterprise first.</div>;
+  if (isLoading) return <div className={styles['wizard-page']} style={{textAlign:'center', padding:'4rem'}}>Loading...</div>;
+  
+  // FIX: Explicitly render the component, do NOT use a plain div
+  if (view === 'no-enterprise' || !enterpriseId) return <NoEnterprisePrompt />;
   
   return (
     <div className={styles['assessment-container']}>
