@@ -1,26 +1,34 @@
+.assessment-container {
+  width: 100%;
+  background-color: #f8fafc;
+}
+
 .wizard-page {
   width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
 }
 
 .page-header {
   margin-bottom: 2rem;
 }
+
 .page-title {
   font-family: 'Bebas Kai', sans-serif;
   font-size: 2.25rem;
   color: #012f53;
-  margin-bottom: 0.5rem;
-  margin: 0
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  line-height: 1;
 }
 
-
-.wizard-page {
-  max-width: 1000px;
-  margin: 0 auto;
+.page-subtitle {
+  color: #64748b;
+  margin-top: 0.5rem;
+  font-size: 1rem;
 }
 
-
-/* --- Stepper (Progress Bar) --- */
 .stepper-card {
   background-color: white;
   border-radius: 1rem;
@@ -108,7 +116,6 @@
   margin: 0;
 }
 
-/* --- Question Card (New Design) --- */
 .questions-card {
   background-color: white;
   border-radius: 1rem;
@@ -169,7 +176,7 @@
   color: white;
   height: 32px;
   width: 32px;
-  border-radius: 50%; /* Circle like original */
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -181,7 +188,7 @@
 .question-text {
   font-size: 1.125rem;
   font-weight: 600;
-  color: #012f53; /* Original Blue */
+  color: #012f53;
   margin: 0;
   line-height: 1.5;
 }
@@ -193,7 +200,6 @@
   font-style: italic;
 }
 
-/* --- THE NEW CARD GRID (This makes the options look good) --- */
 .options-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
@@ -260,7 +266,6 @@
   color: #0179d2;
 }
 
-/* --- Controls --- */
 .guidance-toggle {
   background: none;
   border: none;
@@ -285,7 +290,6 @@
   font-family: inherit;
 }
 
-/* --- Navigation --- */
 .wizard-nav {
   display: flex;
   justify-content: space-between;
@@ -305,15 +309,26 @@
   cursor: pointer;
   border: none;
   transition: all 0.2s;
+  text-decoration: none;
 }
 
-.nav-button-primary { background-color: #0179d2; color: white; }
-.nav-button-primary:hover { background-color: #0162a8; }
+.nav-button-primary { 
+  background-color: #0179d2; 
+  color: white; 
+}
+.nav-button-primary:hover { 
+  background-color: #0162a8; 
+}
 
-.nav-button-secondary { background-color: transparent; border: 1px solid #cbd5e1; color: #64748b; }
-.nav-button-secondary:hover { background-color: #f8fafc; }
+.nav-button-secondary { 
+  background-color: transparent; 
+  border: 1px solid #cbd5e1; 
+  color: #64748b; 
+}
+.nav-button-secondary:hover { 
+  background-color: #f8fafc; 
+}
 
-/* --- Upload --- */
 .upload-zone-container { margin-top: 2rem; padding-top: 1rem; border-top: 1px dashed #e2e8f0; }
 .upload-zone { border: 2px dashed #cbd5e1; border-radius: 1rem; padding: 1.5rem; text-align: center; cursor: pointer; background-color: #f8fafc; }
 .upload-icon { color: #0179d2; margin-bottom: 0.5rem; }
@@ -323,7 +338,47 @@
 .file-info { display: flex; gap: 0.75rem; align-items: center; }
 .remove-file-button { border: none; background: none; color: #ef4444; cursor: pointer; }
 
-/* --- Report (Keeping consistent) --- */
+.prompt-card {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+}
+
+.prompt-icon {
+  color: #f59e0b;
+  margin-bottom: 1.5rem;
+}
+
+.prompt-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 1rem;
+}
+
+.prompt-text {
+  font-size: 1rem;
+  color: #64748b;
+  margin-bottom: 2rem;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.prompt-link {
+  color: #0179d2;
+  text-decoration: underline;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+  margin-top: 1.5rem;
+  display: inline-block;
+}
+
 .report-page { display: flex; flex-direction: column; gap: 1.5rem; }
 .report-header { display: flex; justify-content: space-between; align-items: center; }
 .report-title-section h1 { font-family: 'Bebas Kai', sans-serif; font-size: 2rem; color: #012f53; margin: 0; }
@@ -339,3 +394,7 @@
 .progress-bar-bg { width: 100%; background-color: #e2e8f0; border-radius: 99px; height: 8px; margin-top: 0.5rem; }
 .progress-bar-fg { height: 100%; border-radius: 99px; }
 .category-details { padding: 1rem; margin-top: 1rem; background-color: #f8fafc; border-radius: 0.5rem; }
+.focus-item { display: flex; justify-content: space-between; align-items: center; padding: 1rem 0; border-bottom: 1px solid #e2e8f0; }
+.focus-item-title { font-weight: 600; color: #012f53; }
+.priority-tag { font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 99px; margin-left: 0.5rem; }
+.priority-new { background-color: #fecaca; color: #991b1b; }
