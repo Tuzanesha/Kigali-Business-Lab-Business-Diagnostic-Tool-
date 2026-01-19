@@ -223,7 +223,7 @@ SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY')
 SENDGRID_SANDBOX_MODE_IN_DEBUG = False
 # Disable sandbox mode completely for production
 SENDGRID_SANDBOX_MODE = False
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'ishimwechloee@gmail.com')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'ardinemartinenukuri@gmail.com')
 DEFAULT_FROM_NAME = os.getenv('DEFAULT_FROM_NAME', 'Kigali Business Lab')
 
 # Log email configuration for debugging
