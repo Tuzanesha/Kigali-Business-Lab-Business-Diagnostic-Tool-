@@ -17,4 +17,5 @@ django-ses>=3.4.1
 django-cors-headers==4.3.1
 sendgrid==6.11.0
 django-sendgrid-v5
+resend==2.4.0
 
