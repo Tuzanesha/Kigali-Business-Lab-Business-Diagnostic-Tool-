@@ -207,24 +207,26 @@ csrf_origins_env = os.getenv('CSRF_TRUSTED_ORIGINS', '')
 if csrf_origins_env:
     CSRF_TRUSTED_ORIGINS.extend([origin.strip() for origin in csrf_origins_env.split(',') if origin.strip()])
 
-# SendGrid Email Configuration (Only SendGrid)
-EMAIL_BACKEND = "sendgrid_backend.SendgridBackend"
-SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY')
-# CRITICAL: Set to False in production to send real emails
-# If True, emails only go to verified recipients in SendGrid
-SENDGRID_SANDBOX_MODE_IN_DEBUG = False
-# Disable sandbox mode completely for production
-SENDGRID_SANDBOX_MODE = False
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'ishimwechloee@gmail.com')
-DEFAULT_FROM_NAME = os.getenv('DEFAULT_FROM_NAME', 'Kigali Business Lab')
+# Email configuration (Resend)
+EMAIL_BACKEND = "config.email_backends.ResendEmailBackend"
 
-# Log email configuration for debugging
+# Resend API key for sending emails
+RESEND_API_KEY = os.getenv("RESEND_API_KEY")
+
+# Default sender details
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "ishimwechloee@gmail.com")
+DEFAULT_FROM_NAME = os.getenv("DEFAULT_FROM_NAME", "Kigali Business Lab")
+
+# Log email configuration for debugging (in production only)
 if not DEBUG:
     import logging
+
     logger = logging.getLogger(__name__)
-    logger.info(f"Email Configuration - SendGrid API Key: {'SET' if SENDGRID_API_KEY else 'NOT SET'}")
-    logger.info(f"Email Configuration - From Email: {DEFAULT_FROM_EMAIL}")
-    logger.info(f"Email Configuration - Sandbox Mode: {SENDGRID_SANDBOX_MODE_IN_DEBUG}")
+    logger.info(
+        "Email Configuration - Resend API Key: %s",
+        "SET" if RESEND_API_KEY else "NOT SET",
+    )
+    logger.info("Email Configuration - From Email: %s", DEFAULT_FROM_EMAIL)
 
 # Swagger settings
 SWAGGER_SETTINGS = {

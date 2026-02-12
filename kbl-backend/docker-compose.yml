@@ -44,7 +44,7 @@ services:
       - EMAIL_HOST_USER=ishimwebuckle@gmail.com
       - EMAIL_HOST_PASSWORD=lplupjaoybwgdajc
       - DEFAULT_FROM_EMAIL=ishimwebuckle@gmail.com
-      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
+      - RESEND_API_KEY=${RESEND_API_KEY}
     ports:
       - "8000:8000"
     healthcheck:

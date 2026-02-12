@@ -284,7 +284,7 @@ def send_verification_email(request, user, base_url: str) -> bool:
             return True
         except Exception as send_error:
             logger.error(f"❌ Failed to send verification email to {user.email}: {str(send_error)}", exc_info=True)
-            logger.error(f"   SendGrid API Key configured: {bool(os.environ.get('SENDGRID_API_KEY'))}")
+            logger.error(f"   Resend API Key configured: {bool(os.environ.get('RESEND_API_KEY'))}")
             logger.error(f"   From email: {from_email}")
             raise  # Re-raise to be caught by outer exception handler
         

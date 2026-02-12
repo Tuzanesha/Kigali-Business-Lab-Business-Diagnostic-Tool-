@@ -65,27 +65,18 @@ class Command(BaseCommand):
                     except Exception as e:
                         self.stdout.write(self.style.ERROR(f"   ✗ Migration failed: {e}"))
 
-        # 3. Check SendGrid configuration
-        self.stdout.write("\n3. Checking SendGrid email configuration...")
-        sendgrid_key = os.environ.get('SENDGRID_API_KEY')
+        # 3. Check email provider (Resend) configuration
+        self.stdout.write("\n3. Checking email (Resend) configuration...")
+        resend_key = os.environ.get('RESEND_API_KEY')
         from_email = os.environ.get('DEFAULT_FROM_EMAIL', settings.DEFAULT_FROM_EMAIL)
         
-        if sendgrid_key:
-            self.stdout.write(self.style.SUCCESS(f"   ✓ SENDGRID_API_KEY is set (length: {len(sendgrid_key)})"))
+        if resend_key:
+            self.stdout.write(self.style.SUCCESS(f"   ✓ RESEND_API_KEY is set (length: {len(resend_key)})"))
         else:
-            self.stdout.write(self.style.ERROR("   ✗ SENDGRID_API_KEY is NOT set"))
-            issues_found.append("SendGrid API key missing")
+            self.stdout.write(self.style.ERROR("   ✗ RESEND_API_KEY is NOT set"))
+            issues_found.append("Resend API key missing")
         
         self.stdout.write(f"   From Email: {from_email}")
-        self.stdout.write(f"   Sandbox Mode: {getattr(settings, 'SENDGRID_SANDBOX_MODE_IN_DEBUG', 'Unknown')}")
-        
-        # Check if sandbox mode is disabled
-        sandbox_mode = getattr(settings, 'SENDGRID_SANDBOX_MODE_IN_DEBUG', True)
-        if sandbox_mode:
-            self.stdout.write(self.style.WARNING("   ⚠ Sandbox mode is ENABLED - emails only go to verified recipients"))
-            issues_found.append("SendGrid sandbox mode enabled")
-        else:
-            self.stdout.write(self.style.SUCCESS("   ✓ Sandbox mode is DISABLED"))
 
         # 4. Check media directory
         self.stdout.write("\n4. Checking media directory...")
